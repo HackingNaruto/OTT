@@ -42,6 +42,11 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; cursor: 
 
 /* Dynamic Watermark */
 #watermark { position: absolute; color: rgba(255, 255, 255, 0.12); font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999; user-select: none; transition: all 1s ease; }
+.popup { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 999999; }
+.popup-content { background: #1a1a1a; padding: 25px; border-radius: 15px; width: 85%; max-width: 320px; text-align: center; border: 1px solid #333; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+.popup-content h2 { color: #ff2e7a; font-size: 18px; margin-bottom: 15px; }
+.popup-content button { width: 100%; margin: 5px 0; padding: 10px; border-radius: 8px; border: none; outline: none; background: #2a2a2a; color: white; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s; }
+.popup-content button:hover { border: 1px solid #ff2e7a; }
 </style>
 </head>
 <body>
@@ -61,7 +66,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; cursor: 
         <div id="loadingOverlay" class="loading-overlay"><div class="spinner"></div></div>
         
         <!-- Anti Download attributes -->
-        <video id="myVideo" playsinline controlsList="nodownload noplaybackrate" disablePictureInPicture></video>
+        <video id="myVideo" playsinline controlsList="nodownload noplaybackrate"></video>
 
         <div class="custom-controls" id="customControls">
             <div class="progress-container">
@@ -80,6 +85,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; cursor: 
                     <button onclick="changeSpeed()" id="speedBtn" style="font-size: 12px; font-weight: bold; border: 1px solid rgba(255,255,255,0.3); padding: 2px 8px; border-radius: 5px;">1x</button>
                 </div>
                 <div>
+                    <button onclick="togglePiP()" title="Picture in Picture"><i class="fas fa-clone"></i></button>
                     <button onclick="cycleAspect()"><i class="fas fa-crop-alt"></i></button>
                     <button onclick="handleFullscreenClick()" style="margin-right: 0;"><i class="fas fa-expand"></i></button>
                 </div>
@@ -89,6 +95,15 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; cursor: 
 
     <div class="info-box">
         <p><span style="font-weight: 700; color: #ff2e7a;">Now Playing:</span> <span id="fileName" style="color:white; margin-left: 5px;">Loading...</span></p>
+    </div>
+</div>
+
+<div id="orientationPopup" class="popup" onclick="hideOrientationPopup()">
+    <div class="popup-content" onclick="event.stopPropagation()">
+        <h2>Screen Orientation</h2>
+        <button onclick="enterFullScreen('landscape')"><i class="fas fa-mobile-alt" style="transform: rotate(90deg);"></i> Landscape</button>
+        <button onclick="enterFullScreen('portrait')"><i class="fas fa-mobile-alt"></i> Portrait</button>
+        <button style="background: #ff2e7a; margin-top: 8px;" onclick="hideOrientationPopup()">Cancel</button>
     </div>
 </div>
 
@@ -216,9 +231,40 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; cursor: 
         showOverlay("📐 Format Changed");
     }
 
+    const orientationPopup = document.getElementById('orientationPopup');
+
     function handleFullscreenClick() {
-        if (!document.fullscreenElement) { vWrapper.requestFullscreen(); }
-        else { document.exitFullscreen(); }
+        if (!document.fullscreenElement) { 
+            if(window.innerWidth > 768) {
+                vWrapper.requestFullscreen(); 
+            } else {
+                orientationPopup.style.display = 'flex';
+            }
+        } else { 
+            document.exitFullscreen(); 
+        }
+    }
+
+    async function enterFullScreen(o) { 
+        orientationPopup.style.display = 'none'; 
+        if (vWrapper.requestFullscreen) {
+            await vWrapper.requestFullscreen(); 
+        }
+        if (screen.orientation && screen.orientation.lock) {
+            await screen.orientation.lock(o).catch(e => console.log("Orientation lock failed:", e));
+        } 
+    }
+
+    function hideOrientationPopup() { 
+        orientationPopup.style.display = 'none'; 
+    }
+
+    async function togglePiP() {
+        if (document.pictureInPictureElement) {
+            await document.exitPictureInPicture();
+        } else if (document.pictureInPictureEnabled && !video.disablePictureInPicture) {
+            await video.requestPictureInPicture().catch(e => console.error("PiP failed", e));
+        }
     }
 
     function toggleLock(e) {
