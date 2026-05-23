@@ -10,6 +10,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [trendingEnabled, setTrendingEnabled] = useState(false);
   const [themeToggleEnabled, setThemeToggleEnabled] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const carouselRef = useRef(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -29,6 +31,31 @@ export default function Home() {
     }
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!trendingEnabled || trendingMovies.length === 0) return;
+    let interval = setInterval(() => {
+      if (carouselRef.current && !carouselRef.current.hasAttribute('data-hover')) {
+        let nextSlide = currentSlide + 1;
+        if (nextSlide >= trendingMovies.length) nextSlide = 0;
+        carouselRef.current.scrollTo({
+          left: nextSlide * carouselRef.current.offsetWidth,
+          behavior: 'smooth'
+        });
+      }
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [trendingEnabled, trendingMovies, currentSlide]);
+
+  const handleScroll = (e) => {
+    if (!carouselRef.current) return;
+    const scrollLeft = e.target.scrollLeft;
+    const width = e.target.offsetWidth;
+    const newSlide = Math.round(scrollLeft / width);
+    if (newSlide !== currentSlide && newSlide < trendingMovies.length) {
+      setCurrentSlide(newSlide);
+    }
+  };
 
   const toggleTheme = () => {
     if (document.documentElement.classList.contains('dark')) {
@@ -65,45 +92,13 @@ export default function Home() {
     </Link>
   );
 
-  const TrendingCard = ({ movie, idx }) => (
-    <Link href={`/watch?id=${movie.id}`} key={`${movie.id}-${idx}`} className="min-w-[300px] md:min-w-[480px] flex-none block mx-2">
-      <div className="bg-white dark:bg-black rounded-xl overflow-hidden border border-gray-200 dark:border-zinc-800 hover:border-red-500 dark:hover:border-red-600 transition group cursor-pointer shadow-xl h-full">
-        <div className="aspect-video relative overflow-hidden bg-gray-100 dark:bg-zinc-900">
-          <img src={movie.landscape_thumbnail_url || movie.thumbnail_url} alt={movie.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
-          {movie.type && (
-            <div className="absolute top-2 right-2 bg-black/80 text-[10px] font-bold px-2 py-1 rounded border border-zinc-700 uppercase tracking-wider text-zinc-300">
-              {movie.type}
-            </div>
-          )}
-          <div className="absolute top-2 left-2 bg-red-600/90 text-[10px] font-bold px-2 py-1 rounded shadow-md uppercase tracking-wider text-white">
-            🔥 Top {idx % trendingMovies.length + 1}
-          </div>
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
-            <span className="bg-red-600 px-4 py-2 rounded-full text-sm font-bold text-white shadow-xl shadow-red-500/50">PLAY NOW</span>
-          </div>
-        </div>
-        <div className="p-4">
-          <h3 className="font-bold text-base truncate text-gray-900 dark:text-zinc-100">{movie.title}</h3>
-        </div>
-      </div>
-    </Link>
-  );
+
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-white p-6 transition-colors">
       <style>{`
-        .carousel-track {
-          display: flex;
-          width: max-content;
-          animation: scroll 40s linear infinite;
-        }
-        .carousel-track:hover {
-          animation-play-state: paused;
-        }
-        @keyframes scroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
       <header className="flex justify-between items-center mb-8 max-w-7xl mx-auto border-b border-gray-200 dark:border-zinc-800 pb-4">
         <h1 className="text-3xl font-extrabold tracking-wider text-red-600">{siteName}</h1>
@@ -122,14 +117,39 @@ export default function Home() {
           
           {/* Trending Carousel */}
           {trendingEnabled && trendingList.length > 0 && (
-            <section className="overflow-hidden">
-              <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-zinc-100 flex items-center gap-2">🔥 Trending Now</h2>
-              <div className="overflow-hidden relative pb-4">
-                <div className="carousel-track">
-                  {[...trendingList, ...trendingList].map((movie, idx) => (
-                     <TrendingCard key={`${movie.id}-${idx}`} movie={movie} idx={idx} />
-                  ))}
-                </div>
+            <section 
+              className="relative group -mx-6 md:-mx-0 mb-8" 
+              onMouseEnter={() => carouselRef.current?.setAttribute('data-hover', 'true')}
+              onMouseLeave={() => carouselRef.current?.removeAttribute('data-hover')}
+              onTouchStart={() => carouselRef.current?.setAttribute('data-hover', 'true')}
+              onTouchEnd={() => setTimeout(() => carouselRef.current?.removeAttribute('data-hover'), 2000)}
+            >
+              <div 
+                ref={carouselRef}
+                onScroll={handleScroll}
+                className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide scroll-smooth aspect-video md:h-[60vh] md:aspect-auto w-full bg-zinc-900 md:rounded-2xl"
+              >
+                {trendingList.map((movie, idx) => (
+                  <div key={`slide-${movie.id}-${idx}`} className="min-w-full h-full snap-center relative overflow-hidden">
+                    <img src={movie.landscape_thumbnail_url || movie.thumbnail_url} alt={movie.title} className="object-cover w-full h-full" />
+                    
+                    <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent pointer-events-none"></div>
+
+                    <div className="absolute top-1/2 -translate-y-1/2 left-4 md:left-8 z-10 max-w-[80%] pointer-events-none">
+                       <h2 className="text-4xl md:text-6xl font-black text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)]" style={{ fontFamily: 'Impact, sans-serif' }}>{movie.short_title ? movie.short_title.toUpperCase() : movie.title.toUpperCase()}</h2>
+                    </div>
+
+                    <Link href={`/watch?id=${movie.id}`} className="absolute bottom-4 left-4 md:bottom-8 md:left-8 bg-[#7c5ce6] hover:bg-[#6a4bce] text-white font-semibold py-2 px-6 rounded-xl flex items-center gap-2 transition shadow-lg z-10">
+                      Watch Now <i className="fas fa-arrow-right"></i>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+
+              <div className="absolute bottom-4 right-4 md:bottom-8 md:right-8 bg-black/60 backdrop-blur-md rounded-full px-3 py-2 flex items-center gap-2 z-10">
+                {trendingList.map((_, idx) => (
+                  <div key={`dot-${idx}`} className={`transition-all duration-300 rounded-full ${currentSlide === idx ? 'w-2.5 h-2.5 bg-[#bfabff]' : 'w-2.5 h-2.5 bg-white/30'}`}></div>
+                ))}
               </div>
             </section>
           )}
