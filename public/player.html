@@ -322,13 +322,26 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         window.ovTimer = setTimeout(() => overlay.style.display = 'none', 800);
     }
 
-    video.addEventListener('timeupdate', () => {
+    function updateProgressBar() {
+        const duration = video.duration;
         document.getElementById('currentTimeDisplay').innerText = formatTime(video.currentTime);
-        document.getElementById('totalTimeDisplay').innerText = formatTime(video.duration);
-        let pc = (video.currentTime / video.duration) * 100;
-        document.getElementById('sliderProgress').style.width = pc + '%';
-        document.getElementById('progressBar').value = pc;
-    });
+        document.getElementById('totalTimeDisplay').innerText = formatTime(duration);
+        
+        const progressBar = document.getElementById('progressBar');
+        const sliderProgress = document.getElementById('sliderProgress');
+        
+        if (!duration || isNaN(duration) || duration === 0 || !isFinite(duration)) {
+            progressBar.value = 0;
+            sliderProgress.style.width = '0%';
+        } else {
+            const percent = (video.currentTime / duration) * 100;
+            progressBar.value = percent;
+            sliderProgress.style.width = percent + '%';
+        }
+    }
+
+    video.addEventListener('timeupdate', updateProgressBar);
+    video.addEventListener('loadedmetadata', updateProgressBar);
 
     video.addEventListener('progress', () => {
         if (video.buffered.length > 0) {
