@@ -7,11 +7,19 @@ import Link from 'next/link';
 export default function Admin() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  
+  // -- Auth Gateway --
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginUser, setLoginUser] = useState('');
+  const [loginPass, setLoginPass] = useState('');
+  const [loginError, setLoginError] = useState('');
+
   const [activeTab, setActiveTab] = useState('cms'); // 'cms', 'manage', or 'settings'
   
   // -- CMS Form State --
   const [editId, setEditId] = useState(null);
   const [type, setType] = useState('movie'); // 'movie' or 'series'
+  const [isTrending, setIsTrending] = useState(false);
   
   const [title, setTitle] = useState('');
   const [thumbnailUrl, setThumbnailUrl] = useState('');
@@ -26,6 +34,7 @@ export default function Admin() {
 
   // -- Settings State --
   const [siteName, setSiteName] = useState('StreamX');
+  const [trendingCarouselEnabled, setTrendingCarouselEnabled] = useState(false);
   const [watermarkEnabled, setWatermarkEnabled] = useState(false);
   const [watermarkText, setWatermarkText] = useState('');
   const [watermarkMovement, setWatermarkMovement] = useState('static');
@@ -38,6 +47,7 @@ export default function Admin() {
       const { data } = await supabase.from('site_settings').select('*').eq('id', 1).single();
       if (data) {
         setSiteName(data.site_name || 'StreamX');
+        setTrendingCarouselEnabled(data.trending_carousel_enabled || false);
         setWatermarkEnabled(data.watermark_enabled || false);
         setWatermarkText(data.watermark_text || '');
         setWatermarkMovement(data.watermark_movement || 'static');
@@ -64,17 +74,37 @@ export default function Admin() {
     setIsFetchingList(false);
   };
 
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setLoginError('');
+    const { data } = await supabase.from('site_settings').select('admin_username, admin_password').eq('id', 1).single();
+    setLoading(false);
+    if (data && data.admin_username === loginUser && data.admin_password === loginPass) {
+      setIsAuthenticated(true);
+    } else {
+      setLoginError('Invalid credentials');
+    }
+  };
+
   const handleEdit = (item) => {
     setEditId(item.id);
     setTitle(item.title);
     setThumbnailUrl(item.thumbnail_url || '');
     setVideoUrl(item.video_url || '');
     setType(item.type || 'movie');
+    setIsTrending(item.is_trending || false);
+
+    let parsedData = item.content_data;
+    if (typeof parsedData === 'string') {
+      try { parsedData = JSON.parse(parsedData); } 
+      catch (e) { parsedData = null; }
+    }
 
     if (item.type === 'movie') {
-      setMovieQualities(item.content_data || [{ quality: '1080p', url: '' }]);
+      setMovieQualities((Array.isArray(parsedData) && parsedData.length > 0) ? parsedData : [{ quality: '1080p', url: '' }]);
     } else {
-      setSeasons(item.content_data || [{ season: 1, episodes: [{ episode: 1, title: 'Episode 1', qualities: [{ quality: '1080p', url: '' }] }] }]);
+      setSeasons((Array.isArray(parsedData) && parsedData.length > 0) ? parsedData : [{ season: 1, episodes: [{ episode: 1, title: 'Episode 1', qualities: [{ quality: '1080p', url: '' }] }] }]);
     }
     setActiveTab('cms');
   };
@@ -95,6 +125,7 @@ export default function Admin() {
     setThumbnailUrl('');
     setVideoUrl('');
     setType('movie');
+    setIsTrending(false);
     setMovieQualities([{ quality: '1080p', url: '' }]);
     setSeasons([{ season: 1, episodes: [{ episode: 1, title: 'Episode 1', qualities: [{ quality: '1080p', url: '' }] }] }]);
   };
@@ -117,6 +148,7 @@ export default function Admin() {
       thumbnail_url: thumbnailUrl,
       video_url: videoUrl,
       type,
+      is_trending: isTrending,
       content_data: contentDataPayload
     };
 
@@ -146,6 +178,7 @@ export default function Admin() {
     const { error } = await supabase.from('site_settings').upsert({ 
       id: 1, 
       site_name: siteName,
+      trending_carousel_enabled: trendingCarouselEnabled,
       watermark_enabled: watermarkEnabled, 
       watermark_text: watermarkText,
       watermark_movement: watermarkMovement,
@@ -178,6 +211,29 @@ export default function Admin() {
   const addEpisodeQuality = (sIdx, eIdx) => { const u = [...seasons]; u[sIdx].episodes[eIdx].qualities.push({ quality: '', url: '' }); setSeasons(u); };
   const updateEpisodeQuality = (sIdx, eIdx, qIdx, field, val) => { const u = [...seasons]; u[sIdx].episodes[eIdx].qualities[qIdx][field] = val; setSeasons(u); };
   const removeEpisodeQuality = (sIdx, eIdx, qIdx) => { const u = [...seasons]; u[sIdx].episodes[eIdx].qualities = u[sIdx].episodes[eIdx].qualities.filter((_, i) => i !== qIdx); setSeasons(u); };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
+          <h2 className="text-2xl font-extrabold text-red-600 mb-6 text-center">Secure Admin Gateway</h2>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="text-sm font-bold text-zinc-400">Username</label>
+              <input type="text" className="w-full mt-1 bg-black border border-zinc-800 rounded-xl px-4 py-3 outline-none focus:border-red-600" value={loginUser} onChange={e => setLoginUser(e.target.value)} required />
+            </div>
+            <div>
+              <label className="text-sm font-bold text-zinc-400">Password</label>
+              <input type="password" className="w-full mt-1 bg-black border border-zinc-800 rounded-xl px-4 py-3 outline-none focus:border-red-600" value={loginPass} onChange={e => setLoginPass(e.target.value)} required />
+            </div>
+            {loginError && <p className="text-red-500 text-sm font-bold text-center">{loginError}</p>}
+            <button type="submit" disabled={loading} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition mt-4">{loading ? 'Authenticating...' : 'Login'}</button>
+          </form>
+          <div className="mt-6 text-center"><Link href="/" className="text-zinc-500 hover:text-zinc-300 text-sm">Return to Site</Link></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white p-4 md:p-6 pb-24">
@@ -214,6 +270,10 @@ export default function Admin() {
                  <input type="text" placeholder="Title (Eg: Breaking Bad)" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={title} onChange={e => setTitle(e.target.value)} required />
                  <input type="text" placeholder="Thumbnail Image URL" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={thumbnailUrl} onChange={e => setThumbnailUrl(e.target.value)} required />
                  <input type="text" placeholder="Fallback Video URL (Optional)" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
+                 <label className="flex items-center gap-3 cursor-pointer mt-2 bg-zinc-900/50 border border-zinc-800 p-3 rounded-xl">
+                   <input type="checkbox" className="w-5 h-5 accent-red-600" checked={isTrending} onChange={e => setIsTrending(e.target.checked)} />
+                   <span className="font-bold text-zinc-300">🔥 Mark as Trending Content</span>
+                 </label>
               </div>
             </div>
 
@@ -338,6 +398,10 @@ export default function Admin() {
                 <label className="text-sm text-zinc-500 font-bold">Site Name</label>
                 <input type="text" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={siteName} onChange={e => setSiteName(e.target.value)} required />
               </div>
+              <label className="flex items-center gap-3 cursor-pointer mt-4">
+                <input type="checkbox" className="w-5 h-5 accent-red-600" checked={trendingCarouselEnabled} onChange={e => setTrendingCarouselEnabled(e.target.checked)} />
+                <span className="font-bold text-zinc-300">Enable Trending Carousel on Homepage</span>
+              </label>
             </div>
 
             {/* Global Watermark */}
