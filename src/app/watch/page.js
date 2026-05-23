@@ -101,17 +101,25 @@ function PlayerUI() {
 
   return (
     <div className="flex flex-col min-h-screen bg-zinc-950 text-white">
-      {/* Back Button Header */}
-      <div className="p-4 flex items-center gap-4 bg-black border-b border-zinc-900">
-         <Link href="/" className="text-zinc-400 hover:text-white transition"><i className="fas fa-arrow-left text-xl"></i></Link>
-         <h1 className="text-lg font-bold text-zinc-200 truncate">{title}</h1>
+      {/* Consolidated Header */}
+      <div className="sticky top-0 z-50 p-4 flex items-center gap-3 bg-black border-b border-zinc-900 shadow-md">
+         <Link href="/" className="flex items-center justify-center w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 transition shrink-0">
+           <i className="fas fa-arrow-left text-sm"></i>
+         </Link>
+         
+         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-red-600 flex items-center justify-center shrink-0 shadow-lg shadow-pink-500/20">
+           <i className="fas fa-play text-white text-xs ml-0.5"></i>
+         </div>
+         
+         <h1 className="text-base font-bold text-zinc-100 truncate w-full">{title}</h1>
       </div>
 
+      {/* Edge-to-Edge Player Frame */}
       <div className="w-full bg-black aspect-video relative xl:h-[70vh] xl:aspect-auto">
         {currentUrl ? (
           <iframe 
             src={iframeSrc}
-            className="w-full h-full border-none bg-black"
+            className="w-full h-full border-none block"
             allowFullScreen
             allow="autoplay; encrypted-media"
           />
@@ -120,7 +128,18 @@ function PlayerUI() {
         )}
       </div>
 
-      <div className="max-w-7xl mx-auto w-full p-6 space-y-8">
+      <div className="max-w-7xl mx-auto w-full p-4 md:p-6 space-y-8">
+        
+        {/* Metadata Section */}
+        <div className="pb-4 border-b border-zinc-900">
+           <h2 className="text-xl md:text-2xl font-bold text-white mb-2">{title}</h2>
+           {data.type === 'series' && (
+             <p className="text-xs md:text-sm font-semibold text-zinc-500 uppercase tracking-widest">Series • Season {data.content_data[activeSeasonIdx]?.season}</p>
+           )}
+           {data.type === 'movie' && (
+             <p className="text-xs md:text-sm font-semibold text-zinc-500 uppercase tracking-widest">Movie</p>
+           )}
+        </div>
         
         {/* Quality Selector */}
         {currentQualities.length > 0 && (
