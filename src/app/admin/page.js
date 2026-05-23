@@ -29,6 +29,7 @@ export default function Admin() {
 
   const [movieQualities, setMovieQualities] = useState([{ quality: '1080p', url: '' }]);
   const [seasons, setSeasons] = useState([{ season: 1, episodes: [{ episode: 1, title: 'Episode 1', qualities: [{ quality: '1080p', url: '' }] }] }]);
+  const [bulkImportText, setBulkImportText] = useState('');
 
   // -- Manage List State --
   const [existingContent, setExistingContent] = useState([]);
@@ -220,6 +221,42 @@ export default function Admin() {
   const updateEpisodeQuality = (sIdx, eIdx, qIdx, field, val) => { const u = [...seasons]; u[sIdx].episodes[eIdx].qualities[qIdx][field] = val; setSeasons(u); };
   const removeEpisodeQuality = (sIdx, eIdx, qIdx) => { const u = [...seasons]; u[sIdx].episodes[eIdx].qualities = u[sIdx].episodes[eIdx].qualities.filter((_, i) => i !== qIdx); setSeasons(u); };
 
+  const handleBulkImport = () => {
+    if (!bulkImportText.trim()) return;
+    const lines = bulkImportText.split('\n');
+    const newSeasonsMap = {};
+    
+    lines.forEach(line => {
+      const parts = line.split('|').map(p => p.trim());
+      if (parts.length >= 4) {
+        const [seasonStr, title, quality, url] = parts;
+        const seasonNum = parseInt(seasonStr, 10);
+        if (isNaN(seasonNum)) return;
+        
+        if (!newSeasonsMap[seasonNum]) {
+          newSeasonsMap[seasonNum] = { season: seasonNum, episodes: [] };
+        }
+        
+        let ep = newSeasonsMap[seasonNum].episodes.find(e => e.title === title);
+        if (!ep) {
+          ep = { episode: newSeasonsMap[seasonNum].episodes.length + 1, title, qualities: [] };
+          newSeasonsMap[seasonNum].episodes.push(ep);
+        }
+        
+        ep.qualities.push({ quality, url });
+      }
+    });
+
+    const parsedSeasons = Object.values(newSeasonsMap).sort((a, b) => a.season - b.season);
+    if (parsedSeasons.length > 0) {
+      setSeasons(parsedSeasons);
+      setBulkImportText('');
+      alert('Bulk import processed successfully! Review below before saving.');
+    } else {
+      alert('No valid episodes found. Ensure format is: Season | Episode Title | Quality | Video URL');
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-white flex items-center justify-center p-4 transition-colors">
@@ -311,6 +348,22 @@ export default function Admin() {
             {/* Series Builder (Flat UI) */}
             {type === 'series' && (
               <div className="space-y-8">
+                
+                {/* Bulk Import */}
+                <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 space-y-3">
+                  <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Bulk Import Episodes</h3>
+                  <p className="text-xs text-zinc-500">Format: <code className="bg-black px-1 py-0.5 rounded text-red-400">Season Number | Episode Title | Quality | Video URL</code></p>
+                  <textarea 
+                    className="w-full bg-black border border-zinc-800 rounded-lg px-4 py-3 text-sm focus:border-red-600 outline-none font-mono h-32"
+                    placeholder="1 | Pilot | 1080p | https://link.mp4&#10;1 | Pilot | 720p | https://link2.mp4&#10;1 | Episode 2 | 1080p | https://link3.mp4"
+                    value={bulkImportText}
+                    onChange={(e) => setBulkImportText(e.target.value)}
+                  />
+                  <button type="button" onClick={handleBulkImport} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg text-sm transition">
+                    Process Import
+                  </button>
+                </div>
+
                 {seasons.map((season, sIdx) => (
                   <div key={sIdx} className="space-y-4">
                     

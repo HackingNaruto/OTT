@@ -1,6 +1,6 @@
 'use client';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
 
@@ -17,6 +17,7 @@ function PlayerUI() {
   const [activeEpisodeIdx, setActiveEpisodeIdx] = useState(0);
   const [activeQuality, setActiveQuality] = useState(null); // string like "1080p"
   const [currentUrl, setCurrentUrl] = useState('');
+  const iframeRef = useRef(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -79,17 +80,24 @@ function PlayerUI() {
 
   const handleQualityChange = (qualObj) => {
     setActiveQuality(qualObj.quality);
-    setCurrentUrl(qualObj.url);
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      // Hot-swap seamless quality switch
+      iframeRef.current.contentWindow.postMessage({ type: 'switchQuality', url: qualObj.url }, '*');
+    } else {
+      setCurrentUrl(qualObj.url);
+    }
   };
 
   if (!id) return <div className="text-white text-center mt-20">Invalid Content ID</div>;
   if (loading) return <div className="text-zinc-500 text-center mt-20 animate-pulse">Loading Content...</div>;
   if (!data) return <div className="text-white text-center mt-20">Content not found.</div>;
 
-  let title = data.title;
+  let title = data.short_title || data.title;
+  let iframeTitle = title;
   if (data.type === 'series' && data.content_data?.[activeSeasonIdx]?.episodes?.[activeEpisodeIdx]) {
       const ep = data.content_data[activeSeasonIdx].episodes[activeEpisodeIdx];
       title = `${data.title} - S${data.content_data[activeSeasonIdx].season} E${ep.episode}: ${ep.title}`;
+      iframeTitle = ep.title; // Pass ONLY the episode title to the iframe
   }
 
   // Get current qualities list based on type
@@ -100,7 +108,7 @@ function PlayerUI() {
       currentQualities = data.content_data || [];
   }
 
-  const iframeSrc = `/player.html?url=${encodeURIComponent(currentUrl)}&title=${encodeURIComponent(title)}&wm_text=${encodeURIComponent(settings?.watermark_text || '')}&wm_enable=${settings?.watermark_enabled || false}&site_name=${encodeURIComponent(settings?.site_name || 'StreamX')}&wm_move=${settings?.watermark_movement || 'static'}&wm_size=${settings?.watermark_size || '14px'}&wm_pos=${settings?.watermark_position || 'bottom-right'}`;
+  const iframeSrc = `/player.html?id=${id}&url=${encodeURIComponent(currentUrl)}&title=${encodeURIComponent(iframeTitle)}&wm_text=${encodeURIComponent(settings?.watermark_text || '')}&wm_enable=${settings?.watermark_enabled || false}&site_name=${encodeURIComponent(settings?.site_name || 'StreamX')}&wm_move=${settings?.watermark_movement || 'static'}&wm_size=${settings?.watermark_size || '14px'}&wm_pos=${settings?.watermark_position || 'bottom-right'}`;
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-white transition-colors">
@@ -121,6 +129,7 @@ function PlayerUI() {
       <div className="w-full bg-black aspect-video relative xl:h-[70vh] xl:aspect-auto">
         {currentUrl ? (
           <iframe 
+            ref={iframeRef}
             src={iframeSrc}
             className="w-full h-full border-none block"
             allowFullScreen
@@ -196,7 +205,6 @@ function PlayerUI() {
                    onClick={() => handleEpisodeChange(idx)}
                    className={`flex flex-col text-left p-4 rounded-xl border transition ${activeEpisodeIdx === idx ? 'bg-gray-100 dark:bg-zinc-900 border-red-600' : 'bg-white dark:bg-black border-gray-200 dark:border-zinc-800 hover:border-gray-300 dark:hover:border-zinc-600'}`}
                  >
-                   <span className={`text-xs font-bold mb-1 ${activeEpisodeIdx === idx ? 'text-red-500' : 'text-gray-500 dark:text-zinc-500'}`}>Episode {ep.episode}</span>
                    <span className="font-semibold text-gray-900 dark:text-zinc-200">{ep.title}</span>
                  </button>
                ))}

@@ -23,7 +23,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
 .spinner { width: 45px; height: 45px; border: 4px solid rgba(255, 46, 122, 0.3); border-top: 4px solid #ff2e7a; border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-.gesture-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 0, 0, 0.8); padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: bold; display: none; z-index: 10; pointer-events: none; }
+.gesture-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(25, 25, 25, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 15px 25px; border-radius: 50px; font-size: 16px; font-weight: bold; display: none; z-index: 10; pointer-events: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5); align-items: center; justify-content: center; gap: 10px; white-space: nowrap; }
 .center-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.5); background: rgba(0, 0, 0, 0.6); color: white; border-radius: 50%; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 24px; opacity: 0; pointer-events: none; z-index: 30; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s; }
 .center-icon.active { opacity: 1; transform: translate(-50%, -50%) scale(1.5); }
 .custom-controls { position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 10px; display: flex; flex-direction: column; gap: 8px; transition: opacity 0.3s; z-index: 20; }
@@ -36,6 +36,9 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
 .control-buttons { display: flex; justify-content: space-between; align-items: center; }
 .control-buttons button { background: none; border: none; color: white; font-size: 16px; cursor: pointer; margin-right: 15px; transition: color 0.2s; }
 .control-buttons button:hover { color: #ff2e7a; }
+.volume-container { display: flex; align-items: center; position: relative; }
+.volume-slider { width: 0; opacity: 0; transition: width 0.3s, opacity 0.3s; margin-left: -5px; margin-right: 15px; accent-color: #ff2e7a; cursor: pointer; }
+.volume-container:hover .volume-slider, .volume-slider:focus { width: 60px; opacity: 1; }
 
 /* Dynamic Watermark */
 #watermark { position: absolute; color: rgba(255, 255, 255, 0.12); font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999; user-select: none; transition: all 1s ease; }
@@ -67,15 +70,19 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
                 <span id="currentTimeDisplay">00:00:00</span>
                 <div class="slider-wrapper">
                     <div class="slider-track-bg"></div>
-                    <div class="slider-progress" id="sliderProgress"></div>
+                    <div class="slider-buffer" id="bufferProgress" style="position: absolute; height: 3px; background: rgba(255,255,255,0.4); border-radius: 2px; width: 0%; pointer-events: none;"></div>
+                    <div class="slider-progress" id="sliderProgress" style="z-index: 2;"></div>
                     <input type="range" id="progressBar" min="0" max="100" value="0">
                 </div>
                 <span id="totalTimeDisplay">00:00:00</span>
             </div>
             <div class="control-buttons">
-                <div>
+                <div style="display: flex; align-items: center;">
                     <button onclick="togglePlay()" id="playBtn"><i class="fas fa-play"></i></button>
-                    <button onclick="toggleMute()"><i class="fas fa-volume-up" id="muteIcon"></i></button>
+                    <div class="volume-container">
+                        <button onclick="toggleMute()"><i class="fas fa-volume-up" id="muteIcon"></i></button>
+                        <input type="range" id="desktopVolume" class="volume-slider" min="0" max="1" step="0.05" value="1">
+                    </div>
                     <button onclick="toggleSpeedPopup()" id="speedBtn" title="Playback Speed"><i class="fas fa-tachometer-alt"></i></button>
                 </div>
                 <div>
@@ -85,26 +92,34 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
                 </div>
             </div>
         </div>
-    </div>
-</div>
 
-<div id="orientationPopup" class="popup" onclick="hideOrientationPopup()">
-    <div class="popup-content" onclick="event.stopPropagation()">
-        <h2>Screen Orientation</h2>
-        <button onclick="enterFullScreen('landscape')"><i class="fas fa-mobile-alt" style="transform: rotate(90deg);"></i> Landscape</button>
-        <button onclick="enterFullScreen('portrait')"><i class="fas fa-mobile-alt"></i> Portrait</button>
-        <button style="background: #ff2e7a; margin-top: 8px;" onclick="hideOrientationPopup()">Cancel</button>
-    </div>
-</div>
-
-<div id="speedPopup" class="popup" onclick="toggleSpeedPopup()">
-    <div class="popup-content" style="max-width: 300px; padding: 20px;" onclick="event.stopPropagation()">
-        <h2>Playback Speed</h2>
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
-            <input type="range" id="speedSlider" min="0.25" max="3" step="0.25" value="1" style="flex: 1; margin-right: 15px; accent-color: #ff2e7a; cursor: pointer;">
-            <input type="number" id="speedInput" min="0.25" max="5" step="0.1" value="1" style="width: 60px; background: #2a2a2a; border: 1px solid #444; color: white; padding: 5px; border-radius: 5px; text-align: center; outline: none;">
+        <div id="orientationPopup" class="popup" onclick="hideOrientationPopup()">
+            <div class="popup-content" onclick="event.stopPropagation()">
+                <h2>Screen Orientation</h2>
+                <button onclick="enterFullScreen('landscape')"><i class="fas fa-mobile-alt" style="transform: rotate(90deg);"></i> Landscape</button>
+                <button onclick="enterFullScreen('portrait')"><i class="fas fa-mobile-alt"></i> Portrait</button>
+                <button style="background: #ff2e7a; margin-top: 8px;" onclick="hideOrientationPopup()">Cancel</button>
+            </div>
         </div>
-        <button style="background: #ff2e7a; margin-top: 5px;" onclick="toggleSpeedPopup()">Close</button>
+
+        <div id="speedPopup" class="popup" onclick="toggleSpeedPopup()">
+            <div class="popup-content" style="max-width: 300px; padding: 20px;" onclick="event.stopPropagation()">
+                <h2>Playback Speed</h2>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                    <input type="range" id="speedSlider" min="0.25" max="3" step="0.25" value="1" style="flex: 1; margin-right: 15px; accent-color: #ff2e7a; cursor: pointer;">
+                    <input type="number" id="speedInput" min="0.25" max="5" step="0.1" value="1" style="width: 60px; background: #2a2a2a; border: 1px solid #444; color: white; padding: 5px; border-radius: 5px; text-align: center; outline: none;">
+                </div>
+                <button style="background: #ff2e7a; margin-top: 5px;" onclick="toggleSpeedPopup()">Close</button>
+            </div>
+        </div>
+
+        <div id="resumePopup" class="popup" style="background: rgba(0,0,0,0.9);">
+            <div class="popup-content" style="background: transparent; border: none; box-shadow: none;">
+                <h2 style="color: white; font-size: 24px; margin-bottom: 20px;">Resume Playback?</h2>
+                <button onclick="resumePlayback(true)" style="background: white; color: black; padding: 15px; font-size: 16px; border-radius: 50px; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 10px;"><i class="fas fa-play"></i> Resume Playing</button>
+                <button onclick="resumePlayback(false)" style="background: rgba(255,255,255,0.2); color: white; padding: 15px; font-size: 16px; border-radius: 50px; display: flex; justify-content: center; align-items: center; gap: 10px;"><i class="fas fa-redo"></i> Start Over</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -113,6 +128,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     // 1. INITIALIZATION & DYNAMIC URL FETCH
     // -----------------------------------------------------
     const params = new URLSearchParams(window.location.search);
+    const videoId = params.get('id') || params.get('title');
     const videoUrl = params.get('url');
     const title = params.get('title') || 'External Stream';
     const wmText = params.get('wm_text') || '';
@@ -157,14 +173,52 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     const centerIcon = document.getElementById('centerIcon');
     const loadingOverlay = document.getElementById('loadingOverlay');
 
+    const resumePopup = document.getElementById('resumePopup');
+    let savedTime = 0;
+    if (videoId) {
+        savedTime = parseFloat(localStorage.getItem('resume_' + videoId)) || 0;
+    }
+
     if (videoUrl) {
         video.src = videoUrl;
         video.load();
-        video.play().catch(e => console.log("Autoplay blocked"));
         
-        // SRC HIDING TRICK: Removes link from DOM after it starts fetching
+        if (savedTime > 5) {
+            resumePopup.style.display = 'flex';
+        } else {
+            video.play().catch(e => console.log("Autoplay blocked"));
+        }
+        
         setTimeout(() => { video.removeAttribute('src'); }, 1000);
     }
+
+    function resumePlayback(resume) {
+        resumePopup.style.display = 'none';
+        if (resume && savedTime > 0) {
+            video.currentTime = savedTime;
+        }
+        video.play().catch(e => console.log("Autoplay blocked"));
+    }
+
+    // Save progress periodically
+    setInterval(() => {
+        if (!video.paused && video.currentTime > 5 && videoId) {
+            localStorage.setItem('resume_' + videoId, video.currentTime);
+        }
+    }, 3000);
+
+    // postMessage Listener for seamless quality hot-swap
+    window.addEventListener('message', (e) => {
+        if (e.data && e.data.type === 'switchQuality' && e.data.url) {
+            let currTime = video.currentTime;
+            let wasPaused = video.paused;
+            video.src = e.data.url;
+            video.currentTime = currTime;
+            if (!wasPaused) video.play();
+            setTimeout(() => { video.removeAttribute('src'); }, 1000);
+            showOverlay('<i class="fas fa-check-circle text-green-500"></i> Quality Changed');
+        }
+    });
 
     // -----------------------------------------------------
     // 2. SECURITY MODULE (ANTI-PIRACY)
@@ -212,9 +266,9 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         return (h<10?"0"+h:h)+":"+(m<10?"0"+m:m)+":"+(s<10?"0"+s:s);
     }
 
-    function showOverlay(text) {
-        overlay.innerText = text;
-        overlay.style.display = 'block';
+    function showOverlay(html) {
+        overlay.innerHTML = html;
+        overlay.style.display = 'flex';
         clearTimeout(window.ovTimer);
         window.ovTimer = setTimeout(() => overlay.style.display = 'none', 800);
     }
@@ -225,6 +279,12 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         let pc = (video.currentTime / video.duration) * 100;
         document.getElementById('sliderProgress').style.width = pc + '%';
         document.getElementById('progressBar').value = pc;
+        
+        // Update secondary buffer progress bar
+        if (video.buffered.length > 0) {
+            let bufferEnd = video.buffered.end(video.buffered.length - 1);
+            document.getElementById('bufferProgress').style.width = (bufferEnd / video.duration) * 100 + '%';
+        }
     });
 
     video.addEventListener('waiting', () => loadingOverlay.style.display = 'flex');
@@ -232,6 +292,57 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
 
     document.getElementById('progressBar').addEventListener('input', function() {
         video.currentTime = (this.value / 100) * video.duration;
+    });
+
+    // Desktop Volume Slider binding
+    document.getElementById('desktopVolume').addEventListener('input', function() {
+        video.volume = this.value;
+        document.getElementById('muteIcon').className = video.volume === 0 ? "fas fa-volume-mute" : "fas fa-volume-up";
+        showOverlay((video.volume === 0 ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-up"></i>') + ' Volume: ' + Math.round(video.volume * 100) + '%');
+    });
+
+    // VLC Keyboard Shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (isLocked) return;
+        // Ignore keydowns in input fields
+        if(e.target.tagName === 'INPUT') return;
+        
+        switch(e.code) {
+            case 'Space':
+                e.preventDefault();
+                togglePlay();
+                break;
+            case 'KeyF':
+                e.preventDefault();
+                handleFullscreenClick();
+                break;
+            case 'KeyM':
+                e.preventDefault();
+                toggleMute();
+                break;
+            case 'ArrowRight':
+                e.preventDefault();
+                video.currentTime += 10;
+                showOverlay('+10s <i class="fas fa-forward"></i>');
+                break;
+            case 'ArrowLeft':
+                e.preventDefault();
+                video.currentTime -= 10;
+                showOverlay('<i class="fas fa-backward"></i> -10s');
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                video.volume = Math.min(1, video.volume + 0.1);
+                document.getElementById('desktopVolume').value = video.volume;
+                showOverlay('<i class="fas fa-volume-up"></i> Volume: ' + Math.round(video.volume * 100) + '%');
+                break;
+            case 'ArrowDown':
+                e.preventDefault();
+                video.volume = Math.max(0, video.volume - 0.1);
+                document.getElementById('desktopVolume').value = video.volume;
+                showOverlay((video.volume === 0 ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-down"></i>') + ' Volume: ' + Math.round(video.volume * 100) + '%');
+                break;
+        }
     });
 
     function triggerCenterIcon(iconClass) {
@@ -258,7 +369,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     function toggleMute() {
         video.muted = !video.muted;
         document.getElementById('muteIcon').className = video.muted ? "fas fa-volume-mute" : "fas fa-volume-up";
-        showOverlay(video.muted ? "🔇 Muted" : "🔊 Unmuted");
+        showOverlay(video.muted ? '<i class="fas fa-volume-mute"></i> Muted' : '<i class="fas fa-volume-up"></i> Unmuted');
     }
 
     const speedPopup = document.getElementById('speedPopup');
@@ -279,7 +390,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         video.playbackRate = next;
         speedSlider.value = next;
         speedInput.value = next;
-        showOverlay("🚀 " + next + "x");
+        showOverlay('<i class="fas fa-tachometer-alt"></i> ' + next + 'x');
     }
 
     speedSlider.addEventListener('input', (e) => setSpeed(e.target.value));
@@ -289,7 +400,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         const modes = ['contain', 'cover', 'fill'];
         let idx = (modes.indexOf(video.style.objectFit || 'contain') + 1) % 3;
         video.style.objectFit = modes[idx];
-        showOverlay("📐 Format Changed");
+        showOverlay('<i class="fas fa-crop-alt"></i> Format Changed');
     }
 
     const orientationPopup = document.getElementById('orientationPopup');
@@ -334,7 +445,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         lockBtn.innerHTML = isLocked ? '<i class="fas fa-lock" style="color:#ff2e7a"></i>' : '<i class="fas fa-lock-open"></i>';
         customControls.style.opacity = isLocked ? '0' : '1';
         customControls.style.pointerEvents = isLocked ? 'none' : 'auto';
-        showOverlay(isLocked ? "🔒 Locked" : "🔓 Unlocked");
+        showOverlay(isLocked ? '<i class="fas fa-lock"></i> Locked' : '<i class="fas fa-lock-open"></i> Unlocked');
     }
 
     // Auto-Hide Controls
@@ -379,8 +490,8 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         } else if(tapCount === 2) {
             clearTimeout(tapTimer);
             let rect = glassOverlay.getBoundingClientRect();
-            if(e.clientX - rect.left < rect.width / 2) { video.currentTime -= 10; showOverlay("⏪ -10s"); }
-            else { video.currentTime += 10; showOverlay("+10s ⏩"); }
+            if(e.clientX - rect.left < rect.width / 2) { video.currentTime -= 10; showOverlay('<i class="fas fa-backward"></i> -10s'); }
+            else { video.currentTime += 10; showOverlay('+10s <i class="fas fa-forward"></i>'); }
             tapCount = 0;
         }
     });
@@ -421,19 +532,20 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         if (dragType === 'seek') {
             e.preventDefault(); 
             let seekSecs = Math.floor(dx / 5); 
-            if (seekSecs !== 0) showOverlay((seekSecs > 0 ? '⏩ +' : '⏪ ') + seekSecs + 's');
+            if (seekSecs !== 0) showOverlay((seekSecs > 0 ? '+10s <i class="fas fa-forward"></i>' : '<i class="fas fa-backward"></i> -10s'));
         } else if (dragType === 'brightness') {
             e.preventDefault();
             let newOpacity = currentBrightness + (dy / 300);
             newOpacity = Math.max(0, Math.min(0.8, newOpacity));
             brightnessOverlay.style.opacity = newOpacity;
-            showOverlay('🔆 Brightness: ' + Math.round((1 - newOpacity/0.8) * 100) + '%');
+            showOverlay('<i class="fas fa-sun"></i> Brightness: ' + Math.round((1 - newOpacity/0.8) * 100) + '%');
         } else if (dragType === 'volume') {
             e.preventDefault();
             let newVol = currentVolume - (dy / 300);
             newVol = Math.max(0, Math.min(1, newVol));
             video.volume = newVol;
-            showOverlay((newVol === 0 ? '🔇' : '🔊') + ' Volume: ' + Math.round(newVol * 100) + '%');
+            document.getElementById('desktopVolume').value = newVol;
+            showOverlay((newVol === 0 ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-up"></i>') + ' Volume: ' + Math.round(newVol * 100) + '%');
         }
     });
 
