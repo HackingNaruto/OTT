@@ -41,7 +41,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
 .volume-container:hover .volume-slider, .volume-slider:focus { width: 60px; opacity: 1; }
 
 /* Dynamic Watermark */
-#watermark { position: absolute; color: rgba(255, 255, 255, 0.12); font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999; user-select: none; transition: all 1s ease; }
+#watermark { position: absolute; color: rgba(255, 255, 255, 0.12); font-size: 14px; font-weight: bold; pointer-events: none; z-index: 2147483647 !important; user-select: none; transition: all 1s ease; display: block !important; }
 .popup { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 999999; }
 .popup-content { background: #1a1a1a; padding: 25px; border-radius: 15px; width: 85%; max-width: 320px; text-align: center; border: 1px solid #333; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
 .popup-content h2 { color: #ff2e7a; font-size: 18px; margin-bottom: 15px; }
@@ -58,7 +58,10 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         
         <div id="gestureOverlay" class="gesture-overlay"></div>
         <div id="centerIcon" class="center-icon"></div>
-        <div id="loadingOverlay" class="loading-overlay"><div class="spinner"></div></div>
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="spinner"></div>
+            <div id="loadingText" style="font-size:12px; margin-top:5px; font-weight:bold;">Buffering... 0%</div>
+        </div>
         
         <!-- Anti Download attributes -->
         <video id="myVideo" playsinline controlsList="nodownload noplaybackrate"></video>
@@ -287,7 +290,20 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         }
     });
 
-    video.addEventListener('waiting', () => loadingOverlay.style.display = 'flex');
+    function updateBufferText() {
+        if (loadingOverlay.style.display === 'flex' && video.buffered.length > 0) {
+            let percent = (video.buffered.end(video.buffered.length - 1) / video.duration) * 100;
+            document.getElementById('loadingText').innerText = 'Buffering... ' + Math.round(percent) + '%';
+        }
+    }
+
+    video.addEventListener('progress', updateBufferText);
+
+    video.addEventListener('waiting', () => { 
+        loadingOverlay.style.display = 'flex'; 
+        updateBufferText(); 
+    });
+    
     video.addEventListener('playing', () => loadingOverlay.style.display = 'none');
 
     document.getElementById('progressBar').addEventListener('input', function() {
@@ -531,8 +547,8 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
 
         if (dragType === 'seek') {
             e.preventDefault(); 
-            let seekSecs = Math.floor(dx / 5); 
-            if (seekSecs !== 0) showOverlay((seekSecs > 0 ? '+10s <i class="fas fa-forward"></i>' : '<i class="fas fa-backward"></i> -10s'));
+            let seekSecs = Math.floor(dx / 8); 
+            if (seekSecs !== 0) showOverlay((seekSecs > 0 ? `+${seekSecs}s <i class="fas fa-forward"></i>` : `<i class="fas fa-backward"></i> ${seekSecs}s`));
         } else if (dragType === 'brightness') {
             e.preventDefault();
             let newOpacity = currentBrightness + (dy / 300);
@@ -554,7 +570,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         isDragging = false;
         if (dragType === 'seek') {
             let dx = e.changedTouches[0].clientX - touchStartX;
-            let seekSecs = Math.floor(dx / 5);
+            let seekSecs = Math.floor(dx / 8);
             if(Math.abs(seekSecs) > 1) video.currentTime += seekSecs;
         }
         dragType = null;

@@ -175,6 +175,7 @@ export default function Admin() {
       alert('Error: ' + error.message);
     } else {
       alert(editId ? 'Content Updated Successfully!' : 'Content Published Successfully!');
+      fetchExistingContent();
       cancelEdit(); // Reset form
       setActiveTab('manage'); // Switch back to manage list
     }

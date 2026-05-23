@@ -92,6 +92,7 @@ function PlayerUI() {
   if (loading) return <div className="text-zinc-500 text-center mt-20 animate-pulse">Loading Content...</div>;
   if (!data) return <div className="text-white text-center mt-20">Content not found.</div>;
 
+  let topHeaderTitle = data.short_title || data.title;
   let title = data.short_title || data.title;
   let iframeTitle = title;
   if (data.type === 'series' && data.content_data?.[activeSeasonIdx]?.episodes?.[activeEpisodeIdx]) {
@@ -122,7 +123,7 @@ function PlayerUI() {
            <i className="fas fa-play text-white text-xs ml-0.5"></i>
          </div>
          
-         <h1 className="text-base font-bold text-gray-900 dark:text-zinc-100 truncate w-full">{title}</h1>
+         <h1 className="text-base font-bold text-gray-900 dark:text-zinc-100 truncate w-full">{topHeaderTitle}</h1>
       </div>
 
       {/* Edge-to-Edge Player Frame */}
