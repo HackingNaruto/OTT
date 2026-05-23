@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Secure Player</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; outline: none; }
+body { font-family: 'Poppins', sans-serif; background: #000; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 10px; user-select: none; -webkit-user-select: none; color: #fff; overflow: hidden; }
+.main-wrapper { width: 100%; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; height: 100%; }
+.player-header { width: 100%; display: flex; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); gap: 15px; }
+.back-btn { background: rgba(255,255,255,0.1); border: none; color: white; padding: 8px 15px; border-radius: 8px; cursor: pointer; }
+.player-logo-icon { width: 35px; height: 35px; border-radius: 10px; background: linear-gradient(135deg, #ff2e7a, #ff206e); display: flex; align-items: center; justify-content: center; }
+.player-logo-text h1 { font-size: 1.2rem; color: #fff; }
+.player-logo-text h1 span { color: #ff2e7a; }
+
+.video-wrapper { position: relative; width: 100%; border-radius: 15px; overflow: hidden; background: #000; display: flex; flex-direction: column; justify-content: center; aspect-ratio: 16/9; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+.video-wrapper:fullscreen { aspect-ratio: auto; height: 100vh; border-radius: 0; }
+video { width: 100%; height: 100%; display: block; object-fit: contain; cursor: pointer; }
+
+/* Overlays & Controls */
+.lock-btn { position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 16px; cursor: pointer; z-index: 25; display: flex; align-items: center; justify-content: center; }
+.loading-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; flex-direction: column; align-items: center; gap: 8px; z-index: 15; }
+.spinner { width: 45px; height: 45px; border: 4px solid rgba(255, 46, 122, 0.3); border-top: 4px solid #ff2e7a; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+.gesture-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 0, 0, 0.8); padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: bold; display: none; z-index: 10; pointer-events: none; }
+.custom-controls { position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 10px; display: flex; flex-direction: column; gap: 8px; transition: opacity 0.3s; z-index: 20; }
+.progress-container { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; }
+.slider-wrapper { position: relative; flex: 1; height: 16px; display: flex; align-items: center; cursor: pointer; }
+.slider-track-bg { position: absolute; width: 100%; height: 3px; background: rgba(255,255,255,0.2); border-radius: 2px; }
+.slider-progress { position: absolute; height: 3px; background: #ff2e7a; border-radius: 2px; width: 0%; pointer-events: none; }
+.slider-wrapper input[type=range] { position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 5; }
+
+.control-buttons { display: flex; justify-content: space-between; align-items: center; }
+.control-buttons button { background: none; border: none; color: white; font-size: 16px; cursor: pointer; margin-right: 15px; transition: color 0.2s; }
+.control-buttons button:hover { color: #ff2e7a; }
+.info-box { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 15px; font-size: 13px; color: #ccc; margin-top: 15px; }
+
+/* Dynamic Watermark */
+#watermark { position: absolute; color: rgba(255, 255, 255, 0.12); font-size: 14px; font-weight: bold; pointer-events: none; z-index: 9999; user-select: none; transition: all 1s ease; }
+</style>
+</head>
+<body>
+
+<div class="main-wrapper">
+    <div class="player-header">
+        <button class="back-btn" onclick="window.parent.location.href='/'"><i class="fas fa-arrow-left"></i></button>
+        <div class="player-logo-icon"><i class="fas fa-play"></i></div>
+        <div class="player-logo-text"><h1>Stream<span>X</span></h1></div>
+    </div>
+
+    <div class="video-wrapper" id="vWrapper">
+        <div id="watermark">StreamX Protected</div>
+        <button id="lockBtn" class="lock-btn" onclick="toggleLock(event)"><i class="fas fa-lock-open"></i></button>
+        
+        <div id="gestureOverlay" class="gesture-overlay"></div>
+        <div id="loadingOverlay" class="loading-overlay"><div class="spinner"></div></div>
+        
+        <!-- Anti Download attributes -->
+        <video id="myVideo" playsinline controlsList="nodownload noplaybackrate" disablePictureInPicture></video>
+
+        <div class="custom-controls" id="customControls">
+            <div class="progress-container">
+                <span id="currentTimeDisplay">00:00:00</span>
+                <div class="slider-wrapper">
+                    <div class="slider-track-bg"></div>
+                    <div class="slider-progress" id="sliderProgress"></div>
+                    <input type="range" id="progressBar" min="0" max="100" value="0">
+                </div>
+                <span id="totalTimeDisplay">00:00:00</span>
+            </div>
+            <div class="control-buttons">
+                <div>
+                    <button onclick="togglePlay()" id="playBtn"><i class="fas fa-play"></i></button>
+                    <button onclick="toggleMute()"><i class="fas fa-volume-up" id="muteIcon"></i></button>
+                    <button onclick="changeSpeed()" id="speedBtn" style="font-size: 12px; font-weight: bold; border: 1px solid rgba(255,255,255,0.3); padding: 2px 8px; border-radius: 5px;">1x</button>
+                </div>
+                <div>
+                    <button onclick="cycleAspect()"><i class="fas fa-crop-alt"></i></button>
+                    <button onclick="handleFullscreenClick()" style="margin-right: 0;"><i class="fas fa-expand"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-box">
+        <p><span style="font-weight: 700; color: #ff2e7a;">Now Playing:</span> <span id="fileName" style="color:white; margin-left: 5px;">Loading...</span></p>
+    </div>
+</div>
+
+<script>
+    // -----------------------------------------------------
+    // 1. INITIALIZATION & DYNAMIC URL FETCH
+    // -----------------------------------------------------
+    const params = new URLSearchParams(window.location.search);
+    const videoUrl = params.get('url');
+    const title = params.get('title') || 'External Stream';
+    
+    document.getElementById('fileName').innerText = title;
+    const video = document.getElementById('myVideo');
+    const vWrapper = document.getElementById('vWrapper');
+    const customControls = document.getElementById('customControls');
+    const lockBtn = document.getElementById('lockBtn');
+    const overlay = document.getElementById('gestureOverlay');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+
+    if (videoUrl) {
+        video.src = videoUrl;
+        video.load();
+        video.play().catch(e => console.log("Autoplay blocked"));
+        
+        // SRC HIDING TRICK: Removes link from DOM after it starts fetching
+        setTimeout(() => { video.removeAttribute('src'); }, 3000);
+    }
+
+    // -----------------------------------------------------
+    // 2. SECURITY MODULE (ANTI-PIRACY)
+    // -----------------------------------------------------
+    
+    // Block Right Click
+    document.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        showOverlay('⚠️ Restricted');
+    });
+
+    // Block Keyboard Shortcuts (F12, Ctrl+U, Inspect)
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'F12' || 
+           (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) || 
+           (e.ctrlKey && (e.key === 'U' || e.key === 'S'))) {
+            e.preventDefault();
+            showOverlay('⚠️ Action Blocked');
+            return false;
+        }
+    });
+
+    // Anti-Debugger Trap (Freezes DevTools)
+    setInterval(() => {
+        const start = performance.now();
+        debugger; 
+        const end = performance.now();
+        if (end - start > 100) {
+            video.pause();
+            document.body.innerHTML = "<h2 style='color:red; text-align:center; margin-top:50px;'>Security Threat Detected. Connection Closed.</h2>";
+        }
+    }, 2000);
+
+    // Dynamic Moving Watermark
+    const wm = document.getElementById('watermark');
+    setInterval(() => {
+        wm.style.top = Math.floor(Math.random() * 80) + '%';
+        wm.style.left = Math.floor(Math.random() * 80) + '%';
+    }, 12000);
+
+    // -----------------------------------------------------
+    // 3. PLAYER CONTROLS & LOGIC
+    // -----------------------------------------------------
+    let isLocked = false;
+    let hideTimer;
+
+    function formatTime(sec) {
+        if(isNaN(sec)) return "00:00:00";
+        let h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = Math.floor(sec%60);
+        return (h<10?"0"+h:h)+":"+(m<10?"0"+m:m)+":"+(s<10?"0"+s:s);
+    }
+
+    function showOverlay(text) {
+        overlay.innerText = text;
+        overlay.style.display = 'block';
+        clearTimeout(window.ovTimer);
+        window.ovTimer = setTimeout(() => overlay.style.display = 'none', 800);
+    }
+
+    video.addEventListener('timeupdate', () => {
+        document.getElementById('currentTimeDisplay').innerText = formatTime(video.currentTime);
+        document.getElementById('totalTimeDisplay').innerText = formatTime(video.duration);
+        let pc = (video.currentTime / video.duration) * 100;
+        document.getElementById('sliderProgress').style.width = pc + '%';
+        document.getElementById('progressBar').value = pc;
+    });
+
+    video.addEventListener('waiting', () => loadingOverlay.style.display = 'flex');
+    video.addEventListener('playing', () => loadingOverlay.style.display = 'none');
+
+    document.getElementById('progressBar').addEventListener('input', function() {
+        video.currentTime = (this.value / 100) * video.duration;
+    });
+
+    function togglePlay() {
+        if(video.paused) { video.play(); document.getElementById('playBtn').innerHTML = '<i class="fas fa-pause"></i>'; }
+        else { video.pause(); document.getElementById('playBtn').innerHTML = '<i class="fas fa-play"></i>'; }
+    }
+
+    function toggleMute() {
+        video.muted = !video.muted;
+        document.getElementById('muteIcon').className = video.muted ? "fas fa-volume-mute" : "fas fa-volume-up";
+        showOverlay(video.muted ? "🔇 Muted" : "🔊 Unmuted");
+    }
+
+    function changeSpeed() {
+        let current = video.playbackRate;
+        let next = current >= 2 ? 0.5 : current + 0.5;
+        video.playbackRate = next;
+        document.getElementById('speedBtn').innerText = next + 'x';
+        showOverlay("🚀 " + next + "x");
+    }
+
+    function cycleAspect() {
+        const modes = ['contain', 'cover', 'fill'];
+        let idx = (modes.indexOf(video.style.objectFit || 'contain') + 1) % 3;
+        video.style.objectFit = modes[idx];
+        showOverlay("📐 Format Changed");
+    }
+
+    function handleFullscreenClick() {
+        if (!document.fullscreenElement) { vWrapper.requestFullscreen(); }
+        else { document.exitFullscreen(); }
+    }
+
+    function toggleLock(e) {
+        e.stopPropagation();
+        isLocked = !isLocked;
+        lockBtn.innerHTML = isLocked ? '<i class="fas fa-lock" style="color:#ff2e7a"></i>' : '<i class="fas fa-lock-open"></i>';
+        customControls.style.opacity = isLocked ? '0' : '1';
+        customControls.style.pointerEvents = isLocked ? 'none' : 'auto';
+        showOverlay(isLocked ? "🔒 Locked" : "🔓 Unlocked");
+    }
+
+    // Auto-Hide Controls
+    vWrapper.addEventListener('mousemove', resetHideTimer);
+    vWrapper.addEventListener('touchstart', resetHideTimer);
+    function resetHideTimer() {
+        if (isLocked) return;
+        customControls.style.opacity = '1';
+        lockBtn.style.opacity = '1';
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => {
+            if(!video.paused) { customControls.style.opacity = '0'; lockBtn.style.opacity = '0'; }
+        }, 3000);
+    }
+
+    // Double Tap to Seek
+    let tapCount = 0, tapTimer;
+    video.addEventListener('click', (e) => {
+        if(isLocked) return;
+        tapCount++;
+        if(tapCount === 1) {
+            tapTimer = setTimeout(() => { tapCount = 0; togglePlay(); }, 250);
+        } else if(tapCount === 2) {
+            clearTimeout(tapTimer);
+            let rect = video.getBoundingClientRect();
+            if(e.clientX - rect.left < rect.width / 2) { video.currentTime -= 10; showOverlay("⏪ -10s"); }
+            else { video.currentTime += 10; showOverlay("+10s ⏩"); }
+            tapCount = 0;
+        }
+    });
+
+</script>
+</body>
+</html>
