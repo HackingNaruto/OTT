@@ -30,10 +30,15 @@ export default function Home() {
       ) : (
         <main className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6">
           {movies.map((movie) => (
-            <Link href={`/watch?url=${encodeURIComponent(movie.video_url)}&title=${encodeURIComponent(movie.title)}`} key={movie.id}>
+            <Link href={`/watch?id=${movie.id}`} key={movie.id}>
               <div className="bg-black rounded-xl overflow-hidden border border-zinc-800 hover:border-red-600 transition group cursor-pointer shadow-lg">
                 <div className="aspect-video relative overflow-hidden">
                   <img src={movie.thumbnail_url} alt={movie.title} className="w-full h-full object-cover group-hover:scale-105 transition" />
+                  {movie.type && (
+                    <div className="absolute top-2 right-2 bg-black/80 text-[10px] font-bold px-2 py-1 rounded border border-zinc-700 uppercase tracking-wider text-zinc-300">
+                      {movie.type}
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
                     <span className="bg-red-600 px-3 py-1 rounded-full text-xs font-bold">PLAY</span>
                   </div>
