@@ -134,24 +134,18 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     // -----------------------------------------------------
     const params = new URLSearchParams(window.location.search);
     const videoId = params.get('id') || params.get('title');
-    const obfuscatedData = params.get('data');
     
-    function deobfuscateUrl(dataStr) {
-        if (!dataStr) return null;
+    const deobfuscateUrl = (str) => {
+        if (!str) return '';
         try {
-            const salt = "sTrEaMx_sEcUrE_2026";
-            if (dataStr.endsWith(salt)) {
-                dataStr = dataStr.slice(0, -salt.length);
-            }
-            const reversedStr = dataStr.split('').reverse().join('');
-            return atob(reversedStr);
-        } catch(e) {
-            return null;
+            const noSalt = str.replace('STREAMX_SECURE', '');
+            return atob(noSalt.split('').reverse().join(''));
+        } catch (e) {
+            return '';
         }
-    }
+    };
     
-    const decodedUrl = deobfuscateUrl(obfuscatedData);
-
+    const videoUrl = deobfuscateUrl(params.get('data'));
     const title = params.get('title') || 'External Stream';
     const wmText = params.get('wm_text') || '';
     const wmEnable = params.get('wm_enable') === 'true';
@@ -202,66 +196,25 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         savedTime = parseFloat(localStorage.getItem('resume_' + videoId)) || 0;
     }
 
-    let currentBlobUrl = null;
-
-    async function loadSecureVideo(targetUrl, autoPlay = true, resumeTime = 0) {
-        try {
-            loadingOverlay.style.display = 'flex';
-            // In a real app, this hits your backend which verifies the session and proxies the file.
-            // For now, we mock the secure fetch. To defeat IDM, we fetch the blob and use ObjectURL.
-            const response = await fetch(targetUrl);
-            if (!response.ok) throw new Error("Network response was not ok");
-            const blob = await response.blob();
-            
-            if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
-            currentBlobUrl = URL.createObjectURL(blob);
-            
-            video.src = currentBlobUrl;
-            video.load();
-            
-            if (resumeTime > 0) {
-                video.currentTime = resumeTime;
-            }
-
-            loadingOverlay.style.display = 'none';
-            
-            if (autoPlay) {
-                video.play().catch(e => console.log("Autoplay blocked", e));
-            }
-            
-            setTimeout(() => { video.removeAttribute('src'); }, 1000); // Further hide from DOM
-        } catch(error) {
-            console.error("Secure load failed:", error);
-            loadingOverlay.style.display = 'none';
-            showOverlay('⚠️ Secure Connection Failed');
-        }
-    }
-
-    if (decodedUrl) {
+    if (videoUrl) {
+        video.src = videoUrl;
+        video.load();
+        
         if (savedTime > 5) {
             resumePopup.style.display = 'flex';
-            // Wait for user to click resume or start over before fetching
         } else {
-            loadSecureVideo(decodedUrl, true, 0);
+            video.play().catch(e => console.log("Autoplay blocked"));
         }
+        
+        setTimeout(() => { video.removeAttribute('src'); }, 1000);
     }
-
-    // Dynamic SRC Refresh (Rotating URL)
-    setInterval(() => {
-        if (!video.paused && video.currentTime > 45 && decodedUrl) {
-            // Silently request a token refresh/keep-alive from parent or backend
-            console.log("Token Refreshed. Previous URL expired.");
-            // In reality, this would fetch a new URL, download the next segments/blob, and seamlessly append.
-        }
-    }, 45000);
 
     function resumePlayback(resume) {
         resumePopup.style.display = 'none';
-        let startTime = 0;
         if (resume && savedTime > 0) {
-            startTime = savedTime;
+            video.currentTime = savedTime;
         }
-        loadSecureVideo(decodedUrl, true, startTime);
+        video.play().catch(e => console.log("Autoplay blocked"));
     }
 
     // Save progress periodically
@@ -274,11 +227,12 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     // postMessage Listener for seamless quality hot-swap
     window.addEventListener('message', (e) => {
         if (e.data && e.data.type === 'switchQuality' && e.data.data) {
-            const newUrl = deobfuscateUrl(e.data.data);
-            if (!newUrl) return;
             let currTime = video.currentTime;
             let wasPaused = video.paused;
-            loadSecureVideo(newUrl, !wasPaused, currTime);
+            video.src = deobfuscateUrl(e.data.data);
+            video.currentTime = currTime;
+            if (!wasPaused) video.play();
+            setTimeout(() => { video.removeAttribute('src'); }, 1000);
             showOverlay('<i class="fas fa-check-circle text-green-500"></i> Quality Changed');
         }
     });
