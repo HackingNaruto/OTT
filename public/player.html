@@ -31,7 +31,9 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
 .slider-wrapper { position: relative; flex: 1; height: 16px; display: flex; align-items: center; cursor: pointer; }
 .slider-track-bg { position: absolute; width: 100%; height: 3px; background: rgba(255,255,255,0.2); border-radius: 2px; }
 .slider-progress { position: absolute; height: 3px; background: #ff2e7a; border-radius: 2px; width: 0%; pointer-events: none; }
-.slider-wrapper input[type=range] { position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 5; }
+.slider-wrapper input[type=range] { position: absolute; width: 100%; height: 100%; -webkit-appearance: none; background: transparent; cursor: pointer; z-index: 10; margin: 0; }
+.slider-wrapper input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: #e50914; border-radius: 50%; cursor: pointer; transition: transform 0.1s; position: relative; z-index: 15; }
+.slider-wrapper input[type=range]:active::-webkit-slider-thumb { transform: scale(1.3); }
 
 .control-buttons { display: flex; justify-content: space-between; align-items: center; }
 .control-buttons button { background: none; border: none; color: white; font-size: 16px; cursor: pointer; margin-right: 15px; transition: color 0.2s; }
@@ -147,10 +149,15 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         wmElement.style.cssText = `position: absolute !important; z-index: 999999 !important; pointer-events: none !important; white-space: nowrap !important; display: block !important; font-size: ${wmSize} !important; color: rgba(255,255,255,0.12) !important; font-weight: bold !important;`;
 
         if (wmMove === 'static') {
-            if (wmPos === 'bottom-right') { wmElement.style.bottom = '15px'; wmElement.style.right = '15px'; wmElement.style.top = 'auto'; wmElement.style.left = 'auto'; }
-            else if (wmPos === 'bottom-left') { wmElement.style.bottom = '15px'; wmElement.style.left = '15px'; wmElement.style.top = 'auto'; wmElement.style.right = 'auto'; }
-            else if (wmPos === 'top-right') { wmElement.style.top = '15px'; wmElement.style.right = '15px'; wmElement.style.bottom = 'auto'; wmElement.style.left = 'auto'; }
-            else if (wmPos === 'top-left') { wmElement.style.top = '15px'; wmElement.style.left = '15px'; wmElement.style.bottom = 'auto'; wmElement.style.right = 'auto'; }
+            const isDesktop = window.innerWidth > 1024;
+            const vertOffset = isDesktop ? '10%' : '15px';
+            
+            if (wmPos === 'bottom-right') { wmElement.style.bottom = vertOffset; wmElement.style.right = '15px'; wmElement.style.top = 'auto'; wmElement.style.left = 'auto'; wmElement.style.transform = 'none'; }
+            else if (wmPos === 'bottom-left') { wmElement.style.bottom = vertOffset; wmElement.style.left = '15px'; wmElement.style.top = 'auto'; wmElement.style.right = 'auto'; wmElement.style.transform = 'none'; }
+            else if (wmPos === 'top-right') { wmElement.style.top = vertOffset; wmElement.style.right = '15px'; wmElement.style.bottom = 'auto'; wmElement.style.left = 'auto'; wmElement.style.transform = 'none'; }
+            else if (wmPos === 'top-left') { wmElement.style.top = vertOffset; wmElement.style.left = '15px'; wmElement.style.bottom = 'auto'; wmElement.style.right = 'auto'; wmElement.style.transform = 'none'; }
+            else if (wmPos === 'center-left') { wmElement.style.top = '50%'; wmElement.style.left = '5%'; wmElement.style.transform = 'translateY(-50%)'; wmElement.style.bottom = 'auto'; wmElement.style.right = 'auto'; }
+            else if (wmPos === 'center-right') { wmElement.style.top = '50%'; wmElement.style.right = '5%'; wmElement.style.transform = 'translateY(-50%)'; wmElement.style.bottom = 'auto'; wmElement.style.left = 'auto'; }
         } else {
             window.wmInterval = setInterval(() => {
                 wmElement.style.top = Math.floor(Math.random() * 80) + '%';

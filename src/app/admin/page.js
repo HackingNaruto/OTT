@@ -550,10 +550,15 @@ export default function Admin() {
                     <div className="space-y-2">
                       <label className="text-sm text-zinc-500 font-bold">Size</label>
                       <select className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={watermarkSize} onChange={e => setWatermarkSize(e.target.value)}>
-                        <option value="12px">Small (12px)</option>
-                        <option value="14px">Medium (14px)</option>
-                        <option value="18px">Large (18px)</option>
-                        <option value="24px">Extra Large (24px)</option>
+                        <option value="10px">10px</option>
+                        <option value="12px">12px</option>
+                        <option value="14px">14px</option>
+                        <option value="16px">16px</option>
+                        <option value="18px">18px</option>
+                        <option value="20px">20px</option>
+                        <option value="24px">24px</option>
+                        <option value="28px">28px</option>
+                        <option value="32px">32px</option>
                       </select>
                     </div>
 
@@ -565,6 +570,8 @@ export default function Admin() {
                           <option value="bottom-left">Bottom Left</option>
                           <option value="top-right">Top Right</option>
                           <option value="top-left">Top Left</option>
+                          <option value="center-right">Center Right</option>
+                          <option value="center-left">Center Left</option>
                         </select>
                       </div>
                     )}
