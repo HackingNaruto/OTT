@@ -19,7 +19,6 @@ export default function Admin() {
   // -- CMS Form State --
   const [editId, setEditId] = useState(null);
   const [type, setType] = useState('movie'); // 'movie' or 'series'
-  const [isTrending, setIsTrending] = useState(false);
   
   const [title, setTitle] = useState('');
   const [thumbnailUrl, setThumbnailUrl] = useState('');
@@ -93,7 +92,6 @@ export default function Admin() {
     setThumbnailUrl(item.thumbnail_url || '');
     setVideoUrl(item.video_url || '');
     setType(item.type || 'movie');
-    setIsTrending(item.is_trending || false);
 
     let parsedData = item.content_data;
     if (typeof parsedData === 'string') {
@@ -125,7 +123,6 @@ export default function Admin() {
     setThumbnailUrl('');
     setVideoUrl('');
     setType('movie');
-    setIsTrending(false);
     setMovieQualities([{ quality: '1080p', url: '' }]);
     setSeasons([{ season: 1, episodes: [{ episode: 1, title: 'Episode 1', qualities: [{ quality: '1080p', url: '' }] }] }]);
   };
@@ -148,7 +145,6 @@ export default function Admin() {
       thumbnail_url: thumbnailUrl,
       video_url: videoUrl,
       type,
-      is_trending: isTrending,
       content_data: contentDataPayload
     };
 
@@ -270,10 +266,6 @@ export default function Admin() {
                  <input type="text" placeholder="Title (Eg: Breaking Bad)" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={title} onChange={e => setTitle(e.target.value)} required />
                  <input type="text" placeholder="Thumbnail Image URL" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={thumbnailUrl} onChange={e => setThumbnailUrl(e.target.value)} required />
                  <input type="text" placeholder="Fallback Video URL (Optional)" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
-                 <label className="flex items-center gap-3 cursor-pointer mt-2 bg-zinc-900/50 border border-zinc-800 p-3 rounded-xl">
-                   <input type="checkbox" className="w-5 h-5 accent-red-600" checked={isTrending} onChange={e => setIsTrending(e.target.checked)} />
-                   <span className="font-bold text-zinc-300">🔥 Mark as Trending Content</span>
-                 </label>
               </div>
             </div>
 

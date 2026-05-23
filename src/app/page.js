@@ -5,17 +5,20 @@ import Link from 'next/link';
 
 export default function Home() {
   const [movies, setMovies] = useState([]);
+  const [trendingMovies, setTrendingMovies] = useState([]);
   const [siteName, setSiteName] = useState('STREAMX');
   const [loading, setLoading] = useState(true);
   const [trendingEnabled, setTrendingEnabled] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
-      const [moviesRes, settingsRes] = await Promise.all([
+      const [moviesRes, settingsRes, trendingRes] = await Promise.all([
         supabase.from('movies').select('*').order('created_at', { ascending: false }),
-        supabase.from('site_settings').select('site_name, trending_carousel_enabled').eq('id', 1).single()
+        supabase.from('site_settings').select('site_name, trending_carousel_enabled').eq('id', 1).single(),
+        supabase.from('movies').select('*').order('views', { ascending: false }).limit(10)
       ]);
       if (moviesRes.data) setMovies(moviesRes.data);
+      if (trendingRes.data) setTrendingMovies(trendingRes.data);
       if (settingsRes.data) {
         if (settingsRes.data.site_name) setSiteName(settingsRes.data.site_name.toUpperCase());
         setTrendingEnabled(settingsRes.data.trending_carousel_enabled || false);
@@ -25,9 +28,9 @@ export default function Home() {
     fetchData();
   }, []);
 
-  const trendingList = movies.filter(m => m.is_trending);
-  const movieList = movies.filter(m => m.type === 'movie' && !m.is_trending);
-  const seriesList = movies.filter(m => m.type === 'series' && !m.is_trending);
+  const trendingList = trendingMovies;
+  const movieList = movies.filter(m => m.type === 'movie');
+  const seriesList = movies.filter(m => m.type === 'series');
 
   const MovieCard = ({ movie, isTrending = false }) => (
     <Link href={`/watch?id=${movie.id}`} key={movie.id} className={`${isTrending ? 'min-w-[280px] md:min-w-[400px]' : 'w-full'} flex-none block`}>
@@ -39,7 +42,7 @@ export default function Home() {
               {movie.type}
             </div>
           )}
-          {movie.is_trending && (
+          {isTrending && (
             <div className="absolute top-2 left-2 bg-red-600/90 text-[10px] font-bold px-2 py-1 rounded shadow-md uppercase tracking-wider text-white">
               🔥 Trending
             </div>

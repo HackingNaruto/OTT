@@ -35,6 +35,9 @@ function PlayerUI() {
       if (movie) {
         setData(movie);
         
+        // Increment views in background
+        supabase.from('movies').update({ views: (movie.views || 0) + 1 }).eq('id', id).then();
+
         // Initialize logic
         if (movie.type === 'series' && movie.content_data?.length > 0) {
            const firstSeason = movie.content_data[0];

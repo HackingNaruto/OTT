@@ -24,6 +24,8 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
 .gesture-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 0, 0, 0.8); padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: bold; display: none; z-index: 10; pointer-events: none; }
+.center-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.5); background: rgba(0, 0, 0, 0.6); color: white; border-radius: 50%; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 24px; opacity: 0; pointer-events: none; z-index: 30; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s; }
+.center-icon.active { opacity: 1; transform: translate(-50%, -50%) scale(1.5); }
 .custom-controls { position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 10px; display: flex; flex-direction: column; gap: 8px; transition: opacity 0.3s; z-index: 20; }
 .progress-container { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; }
 .slider-wrapper { position: relative; flex: 1; height: 16px; display: flex; align-items: center; cursor: pointer; }
@@ -52,6 +54,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         <button id="lockBtn" class="lock-btn" onclick="toggleLock(event)"><i class="fas fa-lock-open"></i></button>
         
         <div id="gestureOverlay" class="gesture-overlay"></div>
+        <div id="centerIcon" class="center-icon"></div>
         <div id="loadingOverlay" class="loading-overlay"><div class="spinner"></div></div>
         
         <!-- Anti Download attributes -->
@@ -140,6 +143,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     const customControls = document.getElementById('customControls');
     const lockBtn = document.getElementById('lockBtn');
     const overlay = document.getElementById('gestureOverlay');
+    const centerIcon = document.getElementById('centerIcon');
     const loadingOverlay = document.getElementById('loadingOverlay');
 
     if (videoUrl) {
@@ -219,9 +223,25 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         video.currentTime = (this.value / 100) * video.duration;
     });
 
+    function triggerCenterIcon(iconClass) {
+        centerIcon.innerHTML = `<i class="${iconClass}"></i>`;
+        centerIcon.classList.add('active');
+        clearTimeout(window.centerIconTimer);
+        window.centerIconTimer = setTimeout(() => {
+            centerIcon.classList.remove('active');
+        }, 500);
+    }
+
     function togglePlay() {
-        if(video.paused) { video.play(); document.getElementById('playBtn').innerHTML = '<i class="fas fa-pause"></i>'; }
-        else { video.pause(); document.getElementById('playBtn').innerHTML = '<i class="fas fa-play"></i>'; }
+        if(video.paused) { 
+            video.play(); 
+            document.getElementById('playBtn').innerHTML = '<i class="fas fa-pause"></i>';
+            triggerCenterIcon('fas fa-play');
+        } else { 
+            video.pause(); 
+            document.getElementById('playBtn').innerHTML = '<i class="fas fa-play"></i>';
+            triggerCenterIcon('fas fa-pause');
+        }
     }
 
     function toggleMute() {
@@ -294,19 +314,38 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     glassOverlay.addEventListener('mousemove', resetHideTimer);
     glassOverlay.addEventListener('touchstart', resetHideTimer);
     function resetHideTimer() {
-        if (isLocked) return;
+        if (isLocked) {
+            lockBtn.style.opacity = '1';
+            lockBtn.style.pointerEvents = 'auto';
+            clearTimeout(window.lockHideTimer);
+            window.lockHideTimer = setTimeout(() => {
+                lockBtn.style.opacity = '0';
+                lockBtn.style.pointerEvents = 'none';
+            }, 3000);
+            return;
+        }
         customControls.style.opacity = '1';
+        customControls.style.pointerEvents = 'auto';
         lockBtn.style.opacity = '1';
+        lockBtn.style.pointerEvents = 'auto';
         clearTimeout(hideTimer);
         hideTimer = setTimeout(() => {
-            if(!video.paused) { customControls.style.opacity = '0'; lockBtn.style.opacity = '0'; }
+            if(!video.paused) { 
+                customControls.style.opacity = '0'; 
+                customControls.style.pointerEvents = 'none';
+                lockBtn.style.opacity = '0'; 
+                lockBtn.style.pointerEvents = 'none';
+            }
         }, 3000);
     }
 
     // Double Tap to Seek
     let tapCount = 0, tapTimer;
     glassOverlay.addEventListener('click', (e) => {
-        if(isLocked) return;
+        if(isLocked) {
+            resetHideTimer();
+            return;
+        }
         tapCount++;
         if(tapCount === 1) {
             tapTimer = setTimeout(() => { tapCount = 0; togglePlay(); }, 250);
