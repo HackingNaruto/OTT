@@ -178,7 +178,9 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
             }, 12000);
         }
     } else {
-        wmElement.style.display = 'none';
+        wmElement.style.setProperty('display', 'none', 'important');
+        wmElement.innerHTML = '';
+        wmElement.style.opacity = '0';
     }
 
     const video = document.getElementById('myVideo');
@@ -456,6 +458,17 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
             await screen.orientation.lock(o).catch(e => console.log("Orientation lock failed:", e));
         } 
     }
+
+    const handleFullscreenExit = () => {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            if (screen.orientation && screen.orientation.unlock) {
+                screen.orientation.unlock();
+            }
+        }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenExit);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenExit);
 
     function hideOrientationPopup() { 
         orientationPopup.style.display = 'none'; 
