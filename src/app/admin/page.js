@@ -162,20 +162,30 @@ export default function Admin() {
 
     let error;
     if (editId) {
-      const res = await supabase.from('movies').update(payload).eq('id', editId);
-      error = res.error;
+      const { data, error: updateError } = await supabase.from('movies').update(payload).eq('id', editId).select();
+      error = updateError;
+      console.log("Supabase Update Response:", { data, error });
+      
+      if (!error && data) {
+         setExistingContent(prev => prev.map(item => item.id === editId ? { ...item, ...payload } : item));
+      }
     } else {
-      const res = await supabase.from('movies').insert([payload]);
-      error = res.error;
+      const { data, error: insertError } = await supabase.from('movies').insert([payload]).select();
+      error = insertError;
+      console.log("Supabase Insert Response:", { data, error });
+      
+      if (!error && data && data.length > 0) {
+         setExistingContent(prev => [data[0], ...prev]);
+      }
     }
 
     setLoading(false);
 
     if (error) {
-      alert('Error: ' + error.message);
+      alert('Error updating content: ' + error.message);
     } else {
-      alert(editId ? 'Content Updated Successfully!' : 'Content Published Successfully!');
-      fetchExistingContent();
+      alert(editId ? 'Content updated successfully!' : 'Content published successfully!');
+      router.refresh();
       cancelEdit(); // Reset form
       setActiveTab('manage'); // Switch back to manage list
     }
