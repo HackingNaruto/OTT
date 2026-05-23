@@ -127,7 +127,7 @@ export default function Home() {
               <div 
                 ref={carouselRef}
                 onScroll={handleScroll}
-                className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide scroll-smooth aspect-video md:h-[60vh] md:aspect-auto w-full bg-zinc-900 md:rounded-2xl"
+                className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide scroll-smooth w-full aspect-video relative bg-zinc-900 md:rounded-2xl"
               >
                 {trendingList.map((movie, idx) => (
                   <div key={`slide-${movie.id}-${idx}`} className="min-w-full h-full snap-center relative overflow-hidden">
