@@ -26,7 +26,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
 .gesture-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(25, 25, 25, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 15px 25px; border-radius: 50px; font-size: 16px; font-weight: bold; display: none; z-index: 10; pointer-events: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5); align-items: center; justify-content: center; gap: 10px; white-space: nowrap; }
 .center-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.5); background: rgba(0, 0, 0, 0.6); color: white; border-radius: 50%; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 24px; opacity: 0; pointer-events: none; z-index: 30; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s; }
 .center-icon.active { opacity: 1; transform: translate(-50%, -50%) scale(1.5); }
-.custom-controls { position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 10px; display: flex; flex-direction: column; gap: 8px; transition: opacity 0.3s; z-index: 20; }
+.custom-controls { position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 10px; display: flex; flex-direction: column; gap: 8px; transition: opacity 0.3s; z-index: 99999; }
 .progress-container { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; }
 .slider-wrapper { position: relative; flex: 1; height: 16px; display: flex; align-items: center; cursor: pointer; }
 .slider-track-bg { position: absolute; width: 100%; height: 3px; background: rgba(255,255,255,0.2); border-radius: 2px; }
@@ -91,6 +91,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
                     <button onclick="toggleSpeedPopup()" id="speedBtn" title="Playback Speed"><i class="fas fa-tachometer-alt"></i></button>
                 </div>
                 <div>
+                    <button onclick="toggleQualityPopup()" id="qualityBtn" title="Video Quality" style="display: none;"><i class="fas fa-cog"></i></button>
                     <button onclick="togglePiP()" title="Picture in Picture"><i class="fas fa-clone"></i></button>
                     <button onclick="cycleAspect()"><i class="fas fa-crop-alt"></i></button>
                     <button onclick="handleFullscreenClick()" style="margin-right: 0;"><i class="fas fa-expand"></i></button>
@@ -104,6 +105,14 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
                 <button onclick="enterFullScreen('landscape')"><i class="fas fa-mobile-alt" style="transform: rotate(90deg);"></i> Landscape</button>
                 <button onclick="enterFullScreen('portrait')"><i class="fas fa-mobile-alt"></i> Portrait</button>
                 <button style="background: #ff2e7a; margin-top: 8px;" onclick="hideOrientationPopup()">Cancel</button>
+            </div>
+        </div>
+
+        <div id="qualityPopup" class="popup" onclick="toggleQualityPopup()">
+            <div class="popup-content" style="max-width: 250px; padding: 20px;" onclick="event.stopPropagation()">
+                <h2>Video Quality</h2>
+                <div id="qualityList" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                <button style="background: #ff2e7a; margin-top: 15px;" onclick="toggleQualityPopup()">Close</button>
             </div>
         </div>
 
@@ -146,6 +155,27 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     };
     
     const videoUrl = deobfuscateUrl(params.get('data'));
+    const qualitiesParam = params.get('qualities');
+    let availableQualities = [];
+    if (qualitiesParam) {
+        try {
+            availableQualities = JSON.parse(atob(qualitiesParam));
+            if (availableQualities.length > 0) {
+                document.getElementById('qualityBtn').style.display = 'inline-block';
+                const qList = document.getElementById('qualityList');
+                availableQualities.forEach(q => {
+                    const btn = document.createElement('button');
+                    btn.innerText = q.q;
+                    btn.onclick = () => {
+                        changeQuality(q.u);
+                        toggleQualityPopup();
+                    };
+                    qList.appendChild(btn);
+                });
+            }
+        } catch (e) { console.error('Quality parsing failed', e); }
+    }
+
     const title = params.get('title') || 'External Stream';
     const wmText = params.get('wm_text') || '';
     const wmEnable = params.get('wm_enable') === 'true';
@@ -298,12 +328,14 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         let pc = (video.currentTime / video.duration) * 100;
         document.getElementById('sliderProgress').style.width = pc + '%';
         document.getElementById('progressBar').value = pc;
-        
-        // Update secondary buffer progress bar
+    });
+
+    video.addEventListener('progress', () => {
         if (video.buffered.length > 0) {
             let bufferEnd = video.buffered.end(video.buffered.length - 1);
             document.getElementById('bufferProgress').style.width = (bufferEnd / video.duration) * 100 + '%';
         }
+        updateBufferText();
     });
 
     function updateBufferText() {
@@ -321,6 +353,8 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     });
     
     video.addEventListener('playing', () => loadingOverlay.style.display = 'none');
+    video.addEventListener('play', () => document.getElementById('playBtn').innerHTML = '<i class="fas fa-pause"></i>');
+    video.addEventListener('pause', () => document.getElementById('playBtn').innerHTML = '<i class="fas fa-play"></i>');
 
     document.getElementById('progressBar').addEventListener('input', function() {
         video.currentTime = (this.value / 100) * video.duration;
@@ -389,11 +423,9 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     function togglePlay() {
         if(video.paused) { 
             video.play(); 
-            document.getElementById('playBtn').innerHTML = '<i class="fas fa-pause"></i>';
             triggerCenterIcon('fas fa-play');
         } else { 
             video.pause(); 
-            document.getElementById('playBtn').innerHTML = '<i class="fas fa-play"></i>';
             triggerCenterIcon('fas fa-pause');
         }
     }
@@ -407,6 +439,22 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     const speedPopup = document.getElementById('speedPopup');
     const speedSlider = document.getElementById('speedSlider');
     const speedInput = document.getElementById('speedInput');
+    const qualityPopup = document.getElementById('qualityPopup');
+
+    function toggleQualityPopup() {
+        qualityPopup.style.display = qualityPopup.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    function changeQuality(obfuscatedUrl) {
+        let currTime = video.currentTime;
+        let wasPaused = video.paused;
+        video.src = deobfuscateUrl(obfuscatedUrl);
+        video.load();
+        video.currentTime = currTime;
+        if (!wasPaused) video.play().catch(e => console.log('Autoplay blocked'));
+        setTimeout(() => { video.removeAttribute('src'); }, 1000);
+        showOverlay('<i class="fas fa-check-circle text-green-500"></i> Quality Changed');
+    }
 
     function toggleSpeedPopup() {
         speedPopup.style.display = speedPopup.style.display === 'flex' ? 'none' : 'flex';
