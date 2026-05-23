@@ -183,13 +183,13 @@ function PlayerUI() {
       <div className="max-w-7xl mx-auto w-full p-4 md:p-6 space-y-8">
         
         {/* Metadata Section */}
-        <div className="pb-4 border-b border-gray-200 dark:border-zinc-900">
-           <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-2">{title}</h2>
+        <div className="pb-6">
+           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-1">{data.short_title || data.title}</h2>
            {data.type === 'series' && (
-             <p className="text-xs md:text-sm font-semibold text-gray-500 dark:text-zinc-500 uppercase tracking-widest">Series • Season {data.content_data[activeSeasonIdx]?.season}</p>
+             <p className="text-sm font-medium text-gray-600 dark:text-zinc-400">Season {data.content_data[activeSeasonIdx]?.season} <span className="mx-2">•</span> {data.content_data[activeSeasonIdx]?.episodes[activeEpisodeIdx]?.title}</p>
            )}
            {data.type === 'movie' && (
-             <p className="text-xs md:text-sm font-semibold text-gray-500 dark:text-zinc-500 uppercase tracking-widest">Movie</p>
+             <p className="text-sm font-medium text-gray-600 dark:text-zinc-400">Movie</p>
            )}
         </div>
         
@@ -197,12 +197,12 @@ function PlayerUI() {
         {currentQualities.length > 0 && (
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Video Quality</h3>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {currentQualities.map((q, idx) => (
                 <button 
                   key={idx}
                   onClick={() => handleQualityChange(q)}
-                  className={`px-4 py-2 rounded-lg text-sm font-bold transition border ${activeQuality === q.quality ? 'bg-red-600 border-red-500 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)]' : 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-gray-900 dark:hover:text-white'}`}
+                  className={`text-xs font-semibold px-4 py-1.5 rounded-md transition ${activeQuality === q.quality ? 'bg-[#ff2e7a] text-white' : 'bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'}`}
                 >
                   {q.quality}
                 </button>
@@ -213,40 +213,39 @@ function PlayerUI() {
 
         {/* Series Episode Selector */}
         {data.type === 'series' && data.content_data?.length > 0 && (
-          <div className="space-y-6">
-            {/* Seasons Dropdown / Tabs */}
-            <div className="flex items-center justify-between border-b border-gray-200 dark:border-zinc-800 pb-2">
-               <h3 className="text-xl font-bold text-gray-900 dark:text-white">Episodes</h3>
-               <select 
-                 className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block p-2.5 outline-none"
-                 value={activeSeasonIdx}
-                 onChange={(e) => {
-                   setActiveSeasonIdx(Number(e.target.value));
-                   setActiveEpisodeIdx(0); // reset ep when season changes
-                   
-                   const firstEp = data.content_data[Number(e.target.value)]?.episodes?.[0];
-                   if(firstEp?.qualities?.length > 0) {
-                       setActiveQuality(firstEp.qualities[0].quality);
-                       setCurrentUrl(firstEp.qualities[0].url);
-                   }
-                 }}
-               >
+          <div className="space-y-4">
+            {/* Seasons Tabs */}
+            <div className="flex overflow-x-auto gap-3 scrollbar-hide py-4 border-b border-gray-200 dark:border-zinc-800/50 mb-2">
                  {data.content_data.map((season, idx) => (
-                   <option key={idx} value={idx}>Season {season.season}</option>
+                   <button 
+                     key={idx} 
+                     onClick={() => {
+                       setActiveSeasonIdx(idx);
+                       setActiveEpisodeIdx(0);
+                       const firstEp = data.content_data[idx]?.episodes?.[0];
+                       if(firstEp?.qualities?.length > 0) {
+                           setActiveQuality(firstEp.qualities[0].quality);
+                           setCurrentUrl(firstEp.qualities[0].url);
+                       }
+                     }}
+                     className={`whitespace-nowrap transition cursor-pointer text-sm ${activeSeasonIdx === idx ? 'bg-gray-900 dark:bg-white text-white dark:text-black font-semibold px-5 py-2 rounded-full' : 'bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white px-5 py-2 rounded-full'}`}
+                   >
+                     Season {season.season}
+                   </button>
                  ))}
-               </select>
             </div>
 
-            {/* Episodes Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {/* Episodes List */}
+            <div className="space-y-2">
                {data.content_data[activeSeasonIdx]?.episodes?.map((ep, idx) => (
-                 <button 
+                 <div 
                    key={idx}
                    onClick={() => handleEpisodeChange(idx)}
-                   className={`flex flex-col text-left p-4 rounded-xl border transition ${activeEpisodeIdx === idx ? 'bg-gray-100 dark:bg-zinc-900 border-red-600' : 'bg-white dark:bg-black border-gray-200 dark:border-zinc-800 hover:border-gray-300 dark:hover:border-zinc-600'}`}
+                   className={`flex items-center justify-between p-4 bg-white dark:bg-zinc-900/40 hover:bg-gray-50 dark:hover:bg-zinc-800/80 rounded-xl cursor-pointer transition group border border-gray-100 dark:border-transparent ${activeEpisodeIdx === idx ? 'border-l-4 border-l-[#ff2e7a] dark:border-l-[#ff2e7a]' : ''}`}
                  >
                    <span className="font-semibold text-gray-900 dark:text-zinc-200">{ep.title}</span>
-                 </button>
+                   <i className="fas fa-play text-xs text-gray-400 dark:text-white/30 group-hover:text-gray-900 dark:group-hover:text-white transition"></i>
+                 </div>
                ))}
             </div>
           </div>
