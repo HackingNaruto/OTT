@@ -65,6 +65,32 @@ export default function Admin() {
     fetchSettings();
   }, []);
 
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  function toggleSiteFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => console.log(err));
+    } else {
+      document.exitFullscreen().catch(err => console.log(err));
+    }
+  }
+
+  const toggleTheme = () => {
+    if (document.documentElement.classList.contains('dark')) {
+      document.documentElement.classList.remove('dark');
+      localStorage.theme = 'light';
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.theme = 'dark';
+    }
+  };
+
   // Fetch Content List when Manage Tab is active
   useEffect(() => {
     if (activeTab === 'manage') {
@@ -299,7 +325,18 @@ export default function Admin() {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl md:text-2xl font-bold text-red-600">⚙️ Admin CMS</h2>
-            <Link href="/" className="text-sm text-zinc-400 hover:text-white">View Site</Link>
+            <div className="flex items-center gap-2">
+              {themeToggleEnabled && (
+                <button onClick={toggleTheme} className="text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white transition w-8 h-8 rounded-lg bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 flex items-center justify-center">
+                  <i className="fas fa-sun block dark:hidden text-sm"></i>
+                  <i className="fas fa-moon hidden dark:block text-sm"></i>
+                </button>
+              )}
+              <button onClick={toggleSiteFullscreen} className="text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white transition w-8 h-8 rounded-lg bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 flex items-center justify-center">
+                <i className={isFullscreen ? "fas fa-compress text-sm" : "fas fa-expand text-sm"}></i>
+              </button>
+              <Link href="/" className="text-sm font-bold text-zinc-400 hover:text-white ml-2 bg-zinc-900 px-3 py-1.5 rounded-lg">View Site</Link>
+            </div>
         </div>
 
         {/* Tab Navigation */}

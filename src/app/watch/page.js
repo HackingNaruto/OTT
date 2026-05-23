@@ -18,6 +18,33 @@ function PlayerUI() {
   const [activeQuality, setActiveQuality] = useState(null); // string like "1080p"
   const [currentUrl, setCurrentUrl] = useState('');
   const iframeRef = useRef(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  function toggleSiteFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => console.log(err));
+    } else {
+      document.exitFullscreen().catch(err => console.log(err));
+    }
+  }
+
+  const toggleTheme = () => {
+    if (document.documentElement.classList.contains('dark')) {
+      document.documentElement.classList.remove('dark');
+      localStorage.theme = 'light';
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.theme = 'dark';
+    }
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -124,6 +151,18 @@ function PlayerUI() {
          </div>
          
          <h1 className="text-base font-bold text-gray-900 dark:text-zinc-100 truncate w-full">{topHeaderTitle}</h1>
+         
+         <div className="flex items-center gap-2 ml-auto shrink-0">
+           {settings?.theme_toggle_enabled && (
+             <button onClick={toggleTheme} className="text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white transition w-8 h-8 rounded-lg bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 flex items-center justify-center">
+               <i className="fas fa-sun block dark:hidden text-sm"></i>
+               <i className="fas fa-moon hidden dark:block text-sm"></i>
+             </button>
+           )}
+           <button onClick={toggleSiteFullscreen} className="text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white transition w-8 h-8 rounded-lg bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 flex items-center justify-center">
+             <i className={isFullscreen ? "fas fa-compress text-sm" : "fas fa-expand text-sm"}></i>
+           </button>
+         </div>
       </div>
 
       {/* Edge-to-Edge Player Frame */}
