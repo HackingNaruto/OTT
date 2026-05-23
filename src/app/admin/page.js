@@ -25,16 +25,24 @@ export default function Admin() {
   const [isFetchingList, setIsFetchingList] = useState(false);
 
   // -- Settings State --
+  const [siteName, setSiteName] = useState('StreamX');
   const [watermarkEnabled, setWatermarkEnabled] = useState(false);
   const [watermarkText, setWatermarkText] = useState('');
+  const [watermarkMovement, setWatermarkMovement] = useState('static');
+  const [watermarkSize, setWatermarkSize] = useState('14px');
+  const [watermarkPosition, setWatermarkPosition] = useState('bottom-right');
 
   // Fetch Settings on Mount
   useEffect(() => {
     async function fetchSettings() {
       const { data } = await supabase.from('site_settings').select('*').eq('id', 1).single();
       if (data) {
+        setSiteName(data.site_name || 'StreamX');
         setWatermarkEnabled(data.watermark_enabled || false);
         setWatermarkText(data.watermark_text || '');
+        setWatermarkMovement(data.watermark_movement || 'static');
+        setWatermarkSize(data.watermark_size || '14px');
+        setWatermarkPosition(data.watermark_position || 'bottom-right');
       }
     }
     fetchSettings();
@@ -135,7 +143,15 @@ export default function Admin() {
   const handleSaveSettings = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.from('site_settings').upsert({ id: 1, watermark_enabled: watermarkEnabled, watermark_text: watermarkText });
+    const { error } = await supabase.from('site_settings').upsert({ 
+      id: 1, 
+      site_name: siteName,
+      watermark_enabled: watermarkEnabled, 
+      watermark_text: watermarkText,
+      watermark_movement: watermarkMovement,
+      watermark_size: watermarkSize,
+      watermark_position: watermarkPosition
+    });
     setLoading(false);
     if (error) alert('Error saving settings: ' + error.message);
     else alert('Player Settings saved!');
@@ -314,8 +330,19 @@ export default function Admin() {
         {/* --- SETTINGS TAB --- */}
         {activeTab === 'settings' && (
           <form onSubmit={handleSaveSettings} className="space-y-6">
-            <div className="bg-transparent space-y-6">
-              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Global Watermark</h3>
+            
+            {/* Site Branding */}
+            <div className="bg-transparent space-y-4">
+              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Site Branding</h3>
+              <div className="space-y-2">
+                <label className="text-sm text-zinc-500 font-bold">Site Name</label>
+                <input type="text" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={siteName} onChange={e => setSiteName(e.target.value)} required />
+              </div>
+            </div>
+
+            {/* Global Watermark */}
+            <div className="bg-transparent space-y-6 mt-8">
+              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Player Watermark</h3>
               
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" className="w-5 h-5 accent-red-600" checked={watermarkEnabled} onChange={e => setWatermarkEnabled(e.target.checked)} />
@@ -323,9 +350,43 @@ export default function Admin() {
               </label>
 
               {watermarkEnabled && (
-                <div className="space-y-2">
-                  <label className="text-sm text-zinc-500 font-bold">Watermark Text</label>
-                  <input type="text" placeholder="E.g., StreamX Protected" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={watermarkText} onChange={e => setWatermarkText(e.target.value)} required />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm text-zinc-500 font-bold">Watermark Text</label>
+                    <input type="text" placeholder="E.g., StreamX Protected" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={watermarkText} onChange={e => setWatermarkText(e.target.value)} required />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm text-zinc-500 font-bold">Movement</label>
+                      <select className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={watermarkMovement} onChange={e => setWatermarkMovement(e.target.value)}>
+                        <option value="static">Static (Fixed Corner)</option>
+                        <option value="moving">Moving (Anti-Record)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm text-zinc-500 font-bold">Size</label>
+                      <select className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={watermarkSize} onChange={e => setWatermarkSize(e.target.value)}>
+                        <option value="12px">Small (12px)</option>
+                        <option value="14px">Medium (14px)</option>
+                        <option value="18px">Large (18px)</option>
+                        <option value="24px">Extra Large (24px)</option>
+                      </select>
+                    </div>
+
+                    {watermarkMovement === 'static' && (
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-sm text-zinc-500 font-bold">Fixed Position</label>
+                        <select className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={watermarkPosition} onChange={e => setWatermarkPosition(e.target.value)}>
+                          <option value="bottom-right">Bottom Right</option>
+                          <option value="bottom-left">Bottom Left</option>
+                          <option value="top-right">Top Right</option>
+                          <option value="top-left">Top Left</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

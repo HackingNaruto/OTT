@@ -97,7 +97,7 @@ function PlayerUI() {
       currentQualities = data.content_data || [];
   }
 
-  const iframeSrc = `/player.html?url=${encodeURIComponent(currentUrl)}&title=${encodeURIComponent(title)}&wm_text=${encodeURIComponent(settings.watermark_text || '')}&wm_enable=${settings.watermark_enabled}`;
+  const iframeSrc = `/player.html?url=${encodeURIComponent(currentUrl)}&title=${encodeURIComponent(title)}&wm_text=${encodeURIComponent(settings?.watermark_text || '')}&wm_enable=${settings?.watermark_enabled || false}&site_name=${encodeURIComponent(settings?.site_name || 'StreamX')}&wm_move=${settings?.watermark_movement || 'static'}&wm_size=${settings?.watermark_size || '14px'}&wm_pos=${settings?.watermark_position || 'bottom-right'}`;
 
   return (
     <div className="flex flex-col min-h-screen bg-zinc-950 text-white">

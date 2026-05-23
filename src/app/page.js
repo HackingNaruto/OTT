@@ -5,21 +5,26 @@ import Link from 'next/link';
 
 export default function Home() {
   const [movies, setMovies] = useState([]);
+  const [siteName, setSiteName] = useState('STREAMX');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchMovies() {
-      const { data } = await supabase.from('movies').select('*').order('created_at', { ascending: false });
-      if (data) setMovies(data);
+    async function fetchData() {
+      const [moviesRes, settingsRes] = await Promise.all([
+        supabase.from('movies').select('*').order('created_at', { ascending: false }),
+        supabase.from('site_settings').select('site_name').eq('id', 1).single()
+      ]);
+      if (moviesRes.data) setMovies(moviesRes.data);
+      if (settingsRes.data && settingsRes.data.site_name) setSiteName(settingsRes.data.site_name.toUpperCase());
       setLoading(false);
     }
-    fetchMovies();
+    fetchData();
   }, []);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white p-6">
       <header className="flex justify-between items-center mb-8 max-w-7xl mx-auto border-b border-zinc-800 pb-4">
-        <h1 className="text-3xl font-extrabold tracking-wider text-red-600">STREAM<span className="text-white">X</span></h1>
+        <h1 className="text-3xl font-extrabold tracking-wider text-red-600">{siteName}</h1>
         <Link href="/admin" className="bg-zinc-800 hover:bg-zinc-700 text-xs px-4 py-2 rounded-lg transition">
           Admin Panel
         </Link>

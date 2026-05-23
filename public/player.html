@@ -56,6 +56,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         
         <!-- Anti Download attributes -->
         <video id="myVideo" playsinline controlsList="nodownload noplaybackrate"></video>
+        <div id="brightnessOverlay" style="position: absolute; top:0; left:0; width:100%; height:100%; background: black; opacity: 0; pointer-events: none; z-index: 4; transition: opacity 0.1s;"></div>
         <div id="glassOverlay" class="glass-overlay"></div>
 
         <div class="custom-controls" id="customControls">
@@ -102,11 +103,33 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     const title = params.get('title') || 'External Stream';
     const wmText = params.get('wm_text') || '';
     const wmEnable = params.get('wm_enable') === 'true';
+    const siteName = params.get('site_name') || 'StreamX';
+    const wmMove = params.get('wm_move') || 'static';
+    const wmSize = params.get('wm_size') || '14px';
+    const wmPos = params.get('wm_pos') || 'bottom-right';
     
     const wmElement = document.getElementById('watermark');
     if (wmEnable && wmText) {
         wmElement.innerText = wmText;
+        wmElement.style.fontSize = wmSize;
         wmElement.style.display = 'block';
+
+        if (wmMove === 'static') {
+            wmElement.style.top = 'auto';
+            wmElement.style.bottom = 'auto';
+            wmElement.style.left = 'auto';
+            wmElement.style.right = 'auto';
+            
+            if (wmPos === 'bottom-right') { wmElement.style.bottom = '15px'; wmElement.style.right = '15px'; }
+            else if (wmPos === 'bottom-left') { wmElement.style.bottom = '15px'; wmElement.style.left = '15px'; }
+            else if (wmPos === 'top-right') { wmElement.style.top = '15px'; wmElement.style.right = '15px'; }
+            else if (wmPos === 'top-left') { wmElement.style.top = '15px'; wmElement.style.left = '15px'; }
+        } else {
+            window.wmInterval = setInterval(() => {
+                wmElement.style.top = Math.floor(Math.random() * 80) + '%';
+                wmElement.style.left = Math.floor(Math.random() * 80) + '%';
+            }, 12000);
+        }
     } else {
         wmElement.style.display = 'none';
     }
@@ -160,12 +183,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         }
     }, 2000);
 
-    // Dynamic Moving Watermark
-    const wm = document.getElementById('watermark');
-    setInterval(() => {
-        wm.style.top = Math.floor(Math.random() * 80) + '%';
-        wm.style.left = Math.floor(Math.random() * 80) + '%';
-    }, 12000);
+    // Custom Watermark Engine handles positioning above
 
     // -----------------------------------------------------
     // 3. PLAYER CONTROLS & LOGIC
@@ -299,6 +317,69 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
             else { video.currentTime += 10; showOverlay("+10s ⏩"); }
             tapCount = 0;
         }
+    });
+
+    // Mobile Swipe Gestures
+    const brightnessOverlay = document.getElementById('brightnessOverlay');
+    let touchStartX = 0, touchStartY = 0;
+    let currentBrightness = 0; 
+    let currentVolume = 1;
+    let isDragging = false;
+    let dragType = null; 
+
+    glassOverlay.addEventListener('touchstart', (e) => {
+        if(isLocked) return;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        currentVolume = video.volume;
+        currentBrightness = parseFloat(brightnessOverlay.style.opacity) || 0;
+        isDragging = true;
+        dragType = null;
+    });
+
+    glassOverlay.addEventListener('touchmove', (e) => {
+        if(!isDragging || isLocked) return;
+        let x = e.touches[0].clientX;
+        let y = e.touches[0].clientY;
+        let dx = x - touchStartX;
+        let dy = y - touchStartY;
+        
+        if (!dragType) {
+            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) dragType = 'seek';
+            else if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
+                let rect = glassOverlay.getBoundingClientRect();
+                dragType = (touchStartX < rect.left + rect.width / 2) ? 'brightness' : 'volume';
+            }
+        }
+
+        if (dragType === 'seek') {
+            e.preventDefault(); 
+            let seekSecs = Math.floor(dx / 5); 
+            if (seekSecs !== 0) showOverlay((seekSecs > 0 ? '⏩ +' : '⏪ ') + seekSecs + 's');
+        } else if (dragType === 'brightness') {
+            e.preventDefault();
+            let newOpacity = currentBrightness + (dy / 300);
+            newOpacity = Math.max(0, Math.min(0.8, newOpacity));
+            brightnessOverlay.style.opacity = newOpacity;
+            showOverlay('🔆 Brightness: ' + Math.round((1 - newOpacity/0.8) * 100) + '%');
+        } else if (dragType === 'volume') {
+            e.preventDefault();
+            let newVol = currentVolume - (dy / 300);
+            newVol = Math.max(0, Math.min(1, newVol));
+            video.volume = newVol;
+            showOverlay((newVol === 0 ? '🔇' : '🔊') + ' Volume: ' + Math.round(newVol * 100) + '%');
+        }
+    });
+
+    glassOverlay.addEventListener('touchend', (e) => {
+        if (!isDragging || isLocked) return;
+        isDragging = false;
+        if (dragType === 'seek') {
+            let dx = e.changedTouches[0].clientX - touchStartX;
+            let seekSecs = Math.floor(dx / 5);
+            if(Math.abs(seekSecs) > 1) video.currentTime += seekSecs;
+        }
+        dragType = null;
     });
 
 </script>
