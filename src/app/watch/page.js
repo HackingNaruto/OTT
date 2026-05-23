@@ -9,6 +9,7 @@ function PlayerUI() {
   const id = searchParams.get('id');
 
   const [data, setData] = useState(null);
+  const [settings, setSettings] = useState({ watermark_enabled: false, watermark_text: '' });
   const [loading, setLoading] = useState(true);
   
   // States
@@ -20,7 +21,17 @@ function PlayerUI() {
   useEffect(() => {
     async function fetchData() {
       if (!id) return;
-      const { data: movie } = await supabase.from('movies').select('*').eq('id', id).single();
+      
+      const [movieRes, settingsRes] = await Promise.all([
+        supabase.from('movies').select('*').eq('id', id).single(),
+        supabase.from('site_settings').select('*').eq('id', 1).single()
+      ]);
+
+      if (settingsRes.data) {
+        setSettings(settingsRes.data);
+      }
+
+      const movie = movieRes.data;
       if (movie) {
         setData(movie);
         
@@ -86,6 +97,8 @@ function PlayerUI() {
       currentQualities = data.content_data || [];
   }
 
+  const iframeSrc = `/player.html?url=${encodeURIComponent(currentUrl)}&title=${encodeURIComponent(title)}&wm_text=${encodeURIComponent(settings.watermark_text || '')}&wm_enable=${settings.watermark_enabled}`;
+
   return (
     <div className="flex flex-col min-h-screen bg-zinc-950 text-white">
       {/* Back Button Header */}
@@ -97,7 +110,7 @@ function PlayerUI() {
       <div className="w-full bg-black aspect-video relative xl:h-[70vh] xl:aspect-auto">
         {currentUrl ? (
           <iframe 
-            src={`/player.html?url=${encodeURIComponent(currentUrl)}&title=${encodeURIComponent(title)}`} 
+            src={iframeSrc}
             className="w-full h-full border-none bg-black"
             allowFullScreen
             allow="autoplay; encrypted-media"

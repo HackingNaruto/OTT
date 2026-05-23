@@ -19,7 +19,8 @@ body { font-family: 'Poppins', sans-serif; background: #000; min-height: 100vh; 
 
 .video-wrapper { position: relative; width: 100%; border-radius: 15px; overflow: hidden; background: #000; display: flex; flex-direction: column; justify-content: center; aspect-ratio: 16/9; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
 .video-wrapper:fullscreen { aspect-ratio: auto; height: 100vh; border-radius: 0; }
-video { width: 100%; height: 100%; display: block; object-fit: contain; cursor: pointer; }
+video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-events: none; }
+.glass-overlay { position: absolute; top:0; left:0; width:100%; height:100%; z-index: 5; user-select: none; -webkit-touch-callout: none; pointer-events: auto; }
 
 /* Overlays & Controls */
 .lock-btn { position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 16px; cursor: pointer; z-index: 25; display: flex; align-items: center; justify-content: center; }
@@ -67,6 +68,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; cursor: 
         
         <!-- Anti Download attributes -->
         <video id="myVideo" playsinline controlsList="nodownload noplaybackrate"></video>
+        <div id="glassOverlay" class="glass-overlay"></div>
 
         <div class="custom-controls" id="customControls">
             <div class="progress-container">
@@ -114,9 +116,21 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; cursor: 
     const params = new URLSearchParams(window.location.search);
     const videoUrl = params.get('url');
     const title = params.get('title') || 'External Stream';
+    const wmText = params.get('wm_text') || '';
+    const wmEnable = params.get('wm_enable') === 'true';
     
     document.getElementById('fileName').innerText = title;
+    
+    const wmElement = document.getElementById('watermark');
+    if (wmEnable && wmText) {
+        wmElement.innerText = wmText;
+        wmElement.style.display = 'block';
+    } else {
+        wmElement.style.display = 'none';
+    }
+
     const video = document.getElementById('myVideo');
+    const glassOverlay = document.getElementById('glassOverlay');
     const vWrapper = document.getElementById('vWrapper');
     const customControls = document.getElementById('customControls');
     const lockBtn = document.getElementById('lockBtn');
@@ -129,7 +143,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; cursor: 
         video.play().catch(e => console.log("Autoplay blocked"));
         
         // SRC HIDING TRICK: Removes link from DOM after it starts fetching
-        setTimeout(() => { video.removeAttribute('src'); }, 3000);
+        setTimeout(() => { video.removeAttribute('src'); }, 1000);
     }
 
     // -----------------------------------------------------
@@ -277,8 +291,8 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; cursor: 
     }
 
     // Auto-Hide Controls
-    vWrapper.addEventListener('mousemove', resetHideTimer);
-    vWrapper.addEventListener('touchstart', resetHideTimer);
+    glassOverlay.addEventListener('mousemove', resetHideTimer);
+    glassOverlay.addEventListener('touchstart', resetHideTimer);
     function resetHideTimer() {
         if (isLocked) return;
         customControls.style.opacity = '1';
@@ -291,14 +305,14 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; cursor: 
 
     // Double Tap to Seek
     let tapCount = 0, tapTimer;
-    video.addEventListener('click', (e) => {
+    glassOverlay.addEventListener('click', (e) => {
         if(isLocked) return;
         tapCount++;
         if(tapCount === 1) {
             tapTimer = setTimeout(() => { tapCount = 0; togglePlay(); }, 250);
         } else if(tapCount === 2) {
             clearTimeout(tapTimer);
-            let rect = video.getBoundingClientRect();
+            let rect = glassOverlay.getBoundingClientRect();
             if(e.clientX - rect.left < rect.width / 2) { video.currentTime -= 10; showOverlay("⏪ -10s"); }
             else { video.currentTime += 10; showOverlay("+10s ⏩"); }
             tapCount = 0;
