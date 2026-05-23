@@ -109,7 +109,7 @@ function PlayerUI() {
     setActiveQuality(qualObj.quality);
     if (iframeRef.current && iframeRef.current.contentWindow) {
       // Hot-swap seamless quality switch
-      iframeRef.current.contentWindow.postMessage({ type: 'switchQuality', url: qualObj.url }, '*');
+      iframeRef.current.contentWindow.postMessage({ type: 'switchQuality', data: obfuscateUrl(qualObj.url) }, '*');
     } else {
       setCurrentUrl(qualObj.url);
     }
@@ -136,7 +136,19 @@ function PlayerUI() {
       currentQualities = data.content_data || [];
   }
 
-  const iframeSrc = `/player.html?id=${id}&url=${encodeURIComponent(currentUrl)}&title=${encodeURIComponent(iframeTitle)}&wm_text=${encodeURIComponent(settings?.watermark_text || '')}&wm_enable=${settings?.watermark_enabled || false}&site_name=${encodeURIComponent(settings?.site_name || 'StreamX')}&wm_move=${settings?.watermark_movement || 'static'}&wm_size=${settings?.watermark_size || '14px'}&wm_pos=${settings?.watermark_position || 'bottom-right'}`;
+  const obfuscateUrl = (url) => {
+    if (!url) return '';
+    const salt = "sTrEaMx_sEcUrE_2026";
+    try {
+        const base64Str = btoa(url);
+        const reversedStr = base64Str.split('').reverse().join('');
+        return reversedStr + salt;
+    } catch(e) {
+        return '';
+    }
+  };
+
+  const iframeSrc = `/player.html?id=${id}&data=${encodeURIComponent(obfuscateUrl(currentUrl))}&title=${encodeURIComponent(iframeTitle)}&wm_text=${encodeURIComponent(settings?.watermark_text || '')}&wm_enable=${settings?.watermark_enabled || false}&site_name=${encodeURIComponent(settings?.site_name || 'StreamX')}&wm_move=${settings?.watermark_movement || 'static'}&wm_size=${settings?.watermark_size || '14px'}&wm_pos=${settings?.watermark_position || 'bottom-right'}`;
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-white transition-colors">

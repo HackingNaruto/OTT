@@ -134,7 +134,24 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     // -----------------------------------------------------
     const params = new URLSearchParams(window.location.search);
     const videoId = params.get('id') || params.get('title');
-    const videoUrl = params.get('url');
+    const obfuscatedData = params.get('data');
+    
+    function deobfuscateUrl(dataStr) {
+        if (!dataStr) return null;
+        try {
+            const salt = "sTrEaMx_sEcUrE_2026";
+            if (dataStr.endsWith(salt)) {
+                dataStr = dataStr.slice(0, -salt.length);
+            }
+            const reversedStr = dataStr.split('').reverse().join('');
+            return atob(reversedStr);
+        } catch(e) {
+            return null;
+        }
+    }
+    
+    const decodedUrl = deobfuscateUrl(obfuscatedData);
+
     const title = params.get('title') || 'External Stream';
     const wmText = params.get('wm_text') || '';
     const wmEnable = params.get('wm_enable') === 'true';
@@ -185,8 +202,8 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         savedTime = parseFloat(localStorage.getItem('resume_' + videoId)) || 0;
     }
 
-    if (videoUrl) {
-        video.src = videoUrl;
+    if (decodedUrl) {
+        video.src = decodedUrl;
         video.load();
         
         if (savedTime > 5) {
@@ -215,10 +232,12 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
 
     // postMessage Listener for seamless quality hot-swap
     window.addEventListener('message', (e) => {
-        if (e.data && e.data.type === 'switchQuality' && e.data.url) {
+        if (e.data && e.data.type === 'switchQuality' && e.data.data) {
+            const newUrl = deobfuscateUrl(e.data.data);
+            if (!newUrl) return;
             let currTime = video.currentTime;
             let wasPaused = video.paused;
-            video.src = e.data.url;
+            video.src = newUrl;
             video.currentTime = currTime;
             if (!wasPaused) video.play();
             setTimeout(() => { video.removeAttribute('src'); }, 1000);
