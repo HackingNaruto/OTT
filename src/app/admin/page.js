@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { loginAdmin } from '../actions/auth';
 
 export default function Admin() {
   const router = useRouter();
@@ -21,7 +22,9 @@ export default function Admin() {
   const [type, setType] = useState('movie'); // 'movie' or 'series'
   
   const [title, setTitle] = useState('');
+  const [shortTitle, setShortTitle] = useState('');
   const [thumbnailUrl, setThumbnailUrl] = useState('');
+  const [landscapeThumbnailUrl, setLandscapeThumbnailUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
 
   const [movieQualities, setMovieQualities] = useState([{ quality: '1080p', url: '' }]);
@@ -34,6 +37,7 @@ export default function Admin() {
   // -- Settings State --
   const [siteName, setSiteName] = useState('StreamX');
   const [trendingCarouselEnabled, setTrendingCarouselEnabled] = useState(false);
+  const [themeToggleEnabled, setThemeToggleEnabled] = useState(false);
   const [watermarkEnabled, setWatermarkEnabled] = useState(false);
   const [watermarkText, setWatermarkText] = useState('');
   const [watermarkMovement, setWatermarkMovement] = useState('static');
@@ -47,6 +51,7 @@ export default function Admin() {
       if (data) {
         setSiteName(data.site_name || 'StreamX');
         setTrendingCarouselEnabled(data.trending_carousel_enabled || false);
+        setThemeToggleEnabled(data.theme_toggle_enabled || false);
         setWatermarkEnabled(data.watermark_enabled || false);
         setWatermarkText(data.watermark_text || '');
         setWatermarkMovement(data.watermark_movement || 'static');
@@ -77,19 +82,21 @@ export default function Admin() {
     e.preventDefault();
     setLoading(true);
     setLoginError('');
-    const { data } = await supabase.from('site_settings').select('admin_username, admin_password').eq('id', 1).single();
+    const res = await loginAdmin(loginUser, loginPass);
     setLoading(false);
-    if (data && data.admin_username === loginUser && data.admin_password === loginPass) {
+    if (res.success) {
       setIsAuthenticated(true);
     } else {
-      setLoginError('Invalid credentials');
+      setLoginError(res.error || 'Invalid credentials');
     }
   };
 
   const handleEdit = (item) => {
     setEditId(item.id);
     setTitle(item.title);
+    setShortTitle(item.short_title || '');
     setThumbnailUrl(item.thumbnail_url || '');
+    setLandscapeThumbnailUrl(item.landscape_thumbnail_url || '');
     setVideoUrl(item.video_url || '');
     setType(item.type || 'movie');
 
@@ -120,7 +127,9 @@ export default function Admin() {
   const cancelEdit = () => {
     setEditId(null);
     setTitle('');
+    setShortTitle('');
     setThumbnailUrl('');
+    setLandscapeThumbnailUrl('');
     setVideoUrl('');
     setType('movie');
     setMovieQualities([{ quality: '1080p', url: '' }]);
@@ -142,7 +151,9 @@ export default function Admin() {
 
     const payload = {
       title,
+      short_title: shortTitle,
       thumbnail_url: thumbnailUrl,
+      landscape_thumbnail_url: landscapeThumbnailUrl,
       video_url: videoUrl,
       type,
       content_data: contentDataPayload
@@ -175,6 +186,7 @@ export default function Admin() {
       id: 1, 
       site_name: siteName,
       trending_carousel_enabled: trendingCarouselEnabled,
+      theme_toggle_enabled: themeToggleEnabled,
       watermark_enabled: watermarkEnabled, 
       watermark_text: watermarkText,
       watermark_movement: watermarkMovement,
@@ -210,29 +222,29 @@ export default function Admin() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
+      <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-white flex items-center justify-center p-4 transition-colors">
+        <div className="max-w-md w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-8 shadow-2xl">
           <h2 className="text-2xl font-extrabold text-red-600 mb-6 text-center">Secure Admin Gateway</h2>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-sm font-bold text-zinc-400">Username</label>
-              <input type="text" className="w-full mt-1 bg-black border border-zinc-800 rounded-xl px-4 py-3 outline-none focus:border-red-600" value={loginUser} onChange={e => setLoginUser(e.target.value)} required />
+              <label className="text-sm font-bold text-gray-500 dark:text-zinc-400">Username</label>
+              <input type="text" className="w-full mt-1 bg-gray-100 dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 outline-none focus:border-red-600 text-gray-900 dark:text-white" value={loginUser} onChange={e => setLoginUser(e.target.value)} required />
             </div>
             <div>
-              <label className="text-sm font-bold text-zinc-400">Password</label>
-              <input type="password" className="w-full mt-1 bg-black border border-zinc-800 rounded-xl px-4 py-3 outline-none focus:border-red-600" value={loginPass} onChange={e => setLoginPass(e.target.value)} required />
+              <label className="text-sm font-bold text-gray-500 dark:text-zinc-400">Password</label>
+              <input type="password" className="w-full mt-1 bg-gray-100 dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 outline-none focus:border-red-600 text-gray-900 dark:text-white" value={loginPass} onChange={e => setLoginPass(e.target.value)} required />
             </div>
             {loginError && <p className="text-red-500 text-sm font-bold text-center">{loginError}</p>}
             <button type="submit" disabled={loading} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition mt-4">{loading ? 'Authenticating...' : 'Login'}</button>
           </form>
-          <div className="mt-6 text-center"><Link href="/" className="text-zinc-500 hover:text-zinc-300 text-sm">Return to Site</Link></div>
+          <div className="mt-6 text-center"><Link href="/" className="text-gray-500 dark:text-zinc-500 hover:text-gray-700 dark:hover:text-zinc-300 text-sm">Return to Site</Link></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white p-4 md:p-6 pb-24">
+    <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-white p-4 md:p-6 pb-24 transition-colors">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl md:text-2xl font-bold text-red-600">⚙️ Admin CMS</h2>
@@ -261,11 +273,13 @@ export default function Admin() {
 
             {/* Basic Info */}
             <div className="space-y-4">
-              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Basic Info</h3>
+              <h3 className="text-sm font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-widest border-b border-gray-200 dark:border-zinc-800 pb-2">Basic Info</h3>
               <div className="flex flex-col gap-3">
-                 <input type="text" placeholder="Title (Eg: Breaking Bad)" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={title} onChange={e => setTitle(e.target.value)} required />
-                 <input type="text" placeholder="Thumbnail Image URL" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={thumbnailUrl} onChange={e => setThumbnailUrl(e.target.value)} required />
-                 <input type="text" placeholder="Fallback Video URL (Optional)" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
+                 <input type="text" placeholder="Title (Eg: Breaking Bad)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={title} onChange={e => setTitle(e.target.value)} required />
+                 <input type="text" placeholder="Short Title (For Homepage)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={shortTitle} onChange={e => setShortTitle(e.target.value)} />
+                 <input type="text" placeholder="Portrait Thumbnail URL" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={thumbnailUrl} onChange={e => setThumbnailUrl(e.target.value)} required />
+                 <input type="text" placeholder="Landscape Thumbnail URL (For Trending 16:9)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={landscapeThumbnailUrl} onChange={e => setLandscapeThumbnailUrl(e.target.value)} />
+                 <input type="text" placeholder="Fallback Video URL (Optional)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
               </div>
             </div>
 
@@ -392,7 +406,11 @@ export default function Admin() {
               </div>
               <label className="flex items-center gap-3 cursor-pointer mt-4">
                 <input type="checkbox" className="w-5 h-5 accent-red-600" checked={trendingCarouselEnabled} onChange={e => setTrendingCarouselEnabled(e.target.checked)} />
-                <span className="font-bold text-zinc-300">Enable Trending Carousel on Homepage</span>
+                <span className="font-bold text-gray-700 dark:text-zinc-300">Enable Trending Carousel on Homepage</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer mt-4">
+                <input type="checkbox" className="w-5 h-5 accent-red-600" checked={themeToggleEnabled} onChange={e => setThemeToggleEnabled(e.target.checked)} />
+                <span className="font-bold text-gray-700 dark:text-zinc-300">Enable Light/Dark Mode Switcher</span>
               </label>
             </div>
 

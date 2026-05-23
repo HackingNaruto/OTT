@@ -103,10 +103,10 @@ function PlayerUI() {
   const iframeSrc = `/player.html?url=${encodeURIComponent(currentUrl)}&title=${encodeURIComponent(title)}&wm_text=${encodeURIComponent(settings?.watermark_text || '')}&wm_enable=${settings?.watermark_enabled || false}&site_name=${encodeURIComponent(settings?.site_name || 'StreamX')}&wm_move=${settings?.watermark_movement || 'static'}&wm_size=${settings?.watermark_size || '14px'}&wm_pos=${settings?.watermark_position || 'bottom-right'}`;
 
   return (
-    <div className="flex flex-col min-h-screen bg-zinc-950 text-white">
+    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-white transition-colors">
       {/* Consolidated Header */}
-      <div className="sticky top-0 z-50 p-4 flex items-center gap-3 bg-black border-b border-zinc-900 shadow-md">
-         <Link href="/" className="flex items-center justify-center w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 transition shrink-0">
+      <div className="sticky top-0 z-50 p-4 flex items-center gap-3 bg-white dark:bg-black border-b border-gray-200 dark:border-zinc-900 shadow-md transition-colors">
+         <Link href="/" className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-800 text-gray-600 dark:text-zinc-300 transition shrink-0">
            <i className="fas fa-arrow-left text-sm"></i>
          </Link>
          
@@ -114,7 +114,7 @@ function PlayerUI() {
            <i className="fas fa-play text-white text-xs ml-0.5"></i>
          </div>
          
-         <h1 className="text-base font-bold text-zinc-100 truncate w-full">{title}</h1>
+         <h1 className="text-base font-bold text-gray-900 dark:text-zinc-100 truncate w-full">{title}</h1>
       </div>
 
       {/* Edge-to-Edge Player Frame */}
@@ -134,26 +134,26 @@ function PlayerUI() {
       <div className="max-w-7xl mx-auto w-full p-4 md:p-6 space-y-8">
         
         {/* Metadata Section */}
-        <div className="pb-4 border-b border-zinc-900">
-           <h2 className="text-xl md:text-2xl font-bold text-white mb-2">{title}</h2>
+        <div className="pb-4 border-b border-gray-200 dark:border-zinc-900">
+           <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-2">{title}</h2>
            {data.type === 'series' && (
-             <p className="text-xs md:text-sm font-semibold text-zinc-500 uppercase tracking-widest">Series • Season {data.content_data[activeSeasonIdx]?.season}</p>
+             <p className="text-xs md:text-sm font-semibold text-gray-500 dark:text-zinc-500 uppercase tracking-widest">Series • Season {data.content_data[activeSeasonIdx]?.season}</p>
            )}
            {data.type === 'movie' && (
-             <p className="text-xs md:text-sm font-semibold text-zinc-500 uppercase tracking-widest">Movie</p>
+             <p className="text-xs md:text-sm font-semibold text-gray-500 dark:text-zinc-500 uppercase tracking-widest">Movie</p>
            )}
         </div>
         
         {/* Quality Selector */}
         {currentQualities.length > 0 && (
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Video Quality</h3>
+            <h3 className="text-sm font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Video Quality</h3>
             <div className="flex flex-wrap gap-3">
               {currentQualities.map((q, idx) => (
                 <button 
                   key={idx}
                   onClick={() => handleQualityChange(q)}
-                  className={`px-4 py-2 rounded-lg text-sm font-bold transition border ${activeQuality === q.quality ? 'bg-red-600 border-red-500 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)]' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition border ${activeQuality === q.quality ? 'bg-red-600 border-red-500 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)]' : 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-gray-900 dark:hover:text-white'}`}
                 >
                   {q.quality}
                 </button>
@@ -166,10 +166,10 @@ function PlayerUI() {
         {data.type === 'series' && data.content_data?.length > 0 && (
           <div className="space-y-6">
             {/* Seasons Dropdown / Tabs */}
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-               <h3 className="text-xl font-bold text-white">Episodes</h3>
+            <div className="flex items-center justify-between border-b border-gray-200 dark:border-zinc-800 pb-2">
+               <h3 className="text-xl font-bold text-gray-900 dark:text-white">Episodes</h3>
                <select 
-                 className="bg-zinc-900 border border-zinc-700 text-white text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block p-2.5 outline-none"
+                 className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block p-2.5 outline-none"
                  value={activeSeasonIdx}
                  onChange={(e) => {
                    setActiveSeasonIdx(Number(e.target.value));
@@ -194,10 +194,10 @@ function PlayerUI() {
                  <button 
                    key={idx}
                    onClick={() => handleEpisodeChange(idx)}
-                   className={`flex flex-col text-left p-4 rounded-xl border transition ${activeEpisodeIdx === idx ? 'bg-zinc-900 border-red-600' : 'bg-black border-zinc-800 hover:border-zinc-600'}`}
+                   className={`flex flex-col text-left p-4 rounded-xl border transition ${activeEpisodeIdx === idx ? 'bg-gray-100 dark:bg-zinc-900 border-red-600' : 'bg-white dark:bg-black border-gray-200 dark:border-zinc-800 hover:border-gray-300 dark:hover:border-zinc-600'}`}
                  >
-                   <span className={`text-xs font-bold mb-1 ${activeEpisodeIdx === idx ? 'text-red-500' : 'text-zinc-500'}`}>Episode {ep.episode}</span>
-                   <span className="font-semibold text-zinc-200">{ep.title}</span>
+                   <span className={`text-xs font-bold mb-1 ${activeEpisodeIdx === idx ? 'text-red-500' : 'text-gray-500 dark:text-zinc-500'}`}>Episode {ep.episode}</span>
+                   <span className="font-semibold text-gray-900 dark:text-zinc-200">{ep.title}</span>
                  </button>
                ))}
             </div>
@@ -211,8 +211,8 @@ function PlayerUI() {
 
 export default function Watch() {
   return (
-    <div className="min-h-screen bg-zinc-950">
-      <Suspense fallback={<div className="text-zinc-500 text-center mt-20 animate-pulse">Initializing Interface...</div>}>
+    <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors">
+      <Suspense fallback={<div className="text-gray-500 dark:text-zinc-500 text-center mt-20 animate-pulse">Initializing Interface...</div>}>
         <PlayerUI />
       </Suspense>
     </div>

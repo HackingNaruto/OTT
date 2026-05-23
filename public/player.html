@@ -76,7 +76,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
                 <div>
                     <button onclick="togglePlay()" id="playBtn"><i class="fas fa-play"></i></button>
                     <button onclick="toggleMute()"><i class="fas fa-volume-up" id="muteIcon"></i></button>
-                    <button onclick="changeSpeed()" id="speedBtn" style="font-size: 12px; font-weight: bold; border: 1px solid rgba(255,255,255,0.3); padding: 2px 8px; border-radius: 5px;">1x</button>
+                    <button onclick="toggleSpeedPopup()" id="speedBtn" title="Playback Speed"><i class="fas fa-tachometer-alt"></i></button>
                 </div>
                 <div>
                     <button onclick="togglePiP()" title="Picture in Picture"><i class="fas fa-clone"></i></button>
@@ -94,6 +94,17 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         <button onclick="enterFullScreen('landscape')"><i class="fas fa-mobile-alt" style="transform: rotate(90deg);"></i> Landscape</button>
         <button onclick="enterFullScreen('portrait')"><i class="fas fa-mobile-alt"></i> Portrait</button>
         <button style="background: #ff2e7a; margin-top: 8px;" onclick="hideOrientationPopup()">Cancel</button>
+    </div>
+</div>
+
+<div id="speedPopup" class="popup" onclick="toggleSpeedPopup()">
+    <div class="popup-content" style="max-width: 300px; padding: 20px;" onclick="event.stopPropagation()">
+        <h2>Playback Speed</h2>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+            <input type="range" id="speedSlider" min="0.25" max="3" step="0.25" value="1" style="flex: 1; margin-right: 15px; accent-color: #ff2e7a; cursor: pointer;">
+            <input type="number" id="speedInput" min="0.25" max="5" step="0.1" value="1" style="width: 60px; background: #2a2a2a; border: 1px solid #444; color: white; padding: 5px; border-radius: 5px; text-align: center; outline: none;">
+        </div>
+        <button style="background: #ff2e7a; margin-top: 5px;" onclick="toggleSpeedPopup()">Close</button>
     </div>
 </div>
 
@@ -250,13 +261,29 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         showOverlay(video.muted ? "🔇 Muted" : "🔊 Unmuted");
     }
 
-    function changeSpeed() {
-        let current = video.playbackRate;
-        let next = current >= 2 ? 0.5 : current + 0.5;
+    const speedPopup = document.getElementById('speedPopup');
+    const speedSlider = document.getElementById('speedSlider');
+    const speedInput = document.getElementById('speedInput');
+
+    function toggleSpeedPopup() {
+        speedPopup.style.display = speedPopup.style.display === 'flex' ? 'none' : 'flex';
+        if (speedPopup.style.display === 'flex') {
+            speedSlider.value = video.playbackRate;
+            speedInput.value = video.playbackRate;
+        }
+    }
+
+    function setSpeed(val) {
+        let next = parseFloat(val);
+        if (isNaN(next) || next <= 0) return;
         video.playbackRate = next;
-        document.getElementById('speedBtn').innerText = next + 'x';
+        speedSlider.value = next;
+        speedInput.value = next;
         showOverlay("🚀 " + next + "x");
     }
+
+    speedSlider.addEventListener('input', (e) => setSpeed(e.target.value));
+    speedInput.addEventListener('change', (e) => setSpeed(e.target.value));
 
     function cycleAspect() {
         const modes = ['contain', 'cover', 'fill'];
