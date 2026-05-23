@@ -44,6 +44,7 @@ export default function Admin() {
   const [watermarkMovement, setWatermarkMovement] = useState('static');
   const [watermarkSize, setWatermarkSize] = useState('14px');
   const [watermarkPosition, setWatermarkPosition] = useState('bottom-right');
+  const [autoFullscreenEnabled, setAutoFullscreenEnabled] = useState(false);
 
   // Fetch Settings on Mount
   useEffect(() => {
@@ -58,6 +59,7 @@ export default function Admin() {
         setWatermarkMovement(data.watermark_movement || 'static');
         setWatermarkSize(data.watermark_size || '14px');
         setWatermarkPosition(data.watermark_position || 'bottom-right');
+        setAutoFullscreenEnabled(data.auto_fullscreen_enabled || false);
       }
     }
     fetchSettings();
@@ -203,7 +205,8 @@ export default function Admin() {
       watermark_text: watermarkText,
       watermark_movement: watermarkMovement,
       watermark_size: watermarkSize,
-      watermark_position: watermarkPosition
+      watermark_position: watermarkPosition,
+      auto_fullscreen_enabled: autoFullscreenEnabled
     });
     setLoading(false);
     if (error) alert('Error saving settings: ' + error.message);
@@ -475,6 +478,10 @@ export default function Admin() {
               <label className="flex items-center gap-3 cursor-pointer mt-4">
                 <input type="checkbox" className="w-5 h-5 accent-red-600" checked={themeToggleEnabled} onChange={e => setThemeToggleEnabled(e.target.checked)} />
                 <span className="font-bold text-gray-700 dark:text-zinc-300">Enable Light/Dark Mode Switcher</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer mt-4">
+                <input type="checkbox" className="w-5 h-5 accent-red-600" checked={autoFullscreenEnabled} onChange={e => setAutoFullscreenEnabled(e.target.checked)} />
+                <span className="font-bold text-gray-700 dark:text-zinc-300">Enable Auto-Fullscreen App Mode on Launch</span>
               </label>
             </div>
 

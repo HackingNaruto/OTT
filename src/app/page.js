@@ -10,6 +10,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [trendingEnabled, setTrendingEnabled] = useState(false);
   const [themeToggleEnabled, setThemeToggleEnabled] = useState(false);
+  const [autoFullscreenEnabled, setAutoFullscreenEnabled] = useState(false);
+  const [showEnterModal, setShowEnterModal] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const carouselRef = useRef(null);
 
@@ -17,7 +20,7 @@ export default function Home() {
     async function fetchData() {
       const [moviesRes, settingsRes, trendingRes] = await Promise.all([
         supabase.from('movies').select('*').order('created_at', { ascending: false }),
-        supabase.from('site_settings').select('site_name, trending_carousel_enabled, theme_toggle_enabled').eq('id', 1).single(),
+        supabase.from('site_settings').select('site_name, trending_carousel_enabled, theme_toggle_enabled, auto_fullscreen_enabled').eq('id', 1).single(),
         supabase.from('movies').select('*').order('views', { ascending: false }).limit(10)
       ]);
       if (moviesRes.data) setMovies(moviesRes.data);
@@ -26,6 +29,10 @@ export default function Home() {
         if (settingsRes.data.site_name) setSiteName(settingsRes.data.site_name.toUpperCase());
         setTrendingEnabled(settingsRes.data.trending_carousel_enabled || false);
         setThemeToggleEnabled(settingsRes.data.theme_toggle_enabled || false);
+        setAutoFullscreenEnabled(settingsRes.data.auto_fullscreen_enabled || false);
+        if (settingsRes.data.auto_fullscreen_enabled && !document.fullscreenElement) {
+          setShowEnterModal(true);
+        }
       }
       setLoading(false);
     }
@@ -54,6 +61,27 @@ export default function Home() {
     const newSlide = Math.round(scrollLeft / width);
     if (newSlide !== currentSlide && newSlide < trendingMovies.length) {
       setCurrentSlide(newSlide);
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const handleEnterApp = () => {
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(e => console.log(e));
+    }
+    setShowEnterModal(false);
+  };
+
+  const handleExitFullscreen = () => {
+    if (document.exitFullscreen) {
+      document.exitFullscreen().catch(e => console.log(e));
     }
   };
 
@@ -96,6 +124,23 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-white p-6 transition-colors">
+      {/* App Enter Modal */}
+      {showEnterModal && (
+        <div className="fixed inset-0 z-[99999] bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center">
+          <h1 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-wider">{siteName}</h1>
+          <button onClick={handleEnterApp} className="bg-red-600 hover:bg-red-700 text-white font-bold text-xl py-4 px-12 rounded-full shadow-[0_0_40px_rgba(220,38,38,0.5)] hover:shadow-[0_0_60px_rgba(220,38,38,0.8)] transition-all transform hover:scale-105 animate-pulse">
+            Enter App
+          </button>
+        </div>
+      )}
+
+      {/* Floating Exit Fullscreen Button */}
+      {isFullscreen && (
+        <button onClick={handleExitFullscreen} className="fixed top-4 right-4 z-[9999] bg-black/50 hover:bg-black/80 backdrop-blur-md text-white/70 hover:text-white border border-white/10 w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-lg group">
+          <i className="fas fa-compress group-hover:scale-110 transition-transform"></i>
+        </button>
+      )}
+
       <style>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
