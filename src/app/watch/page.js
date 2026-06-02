@@ -392,11 +392,13 @@ function PlayerUI() {
                    onClick={() => handleEpisodeChange(idx)}
                    className={`flex items-center gap-4 p-3 bg-white dark:bg-zinc-900/40 hover:bg-gray-50 dark:hover:bg-zinc-800/80 rounded-xl cursor-pointer transition group border border-gray-100 dark:border-transparent ${activeEpisodeIdx === idx ? 'border-l-4 border-l-[#ff2e7a] dark:border-l-[#ff2e7a]' : ''}`}
                  >
-                   <DynamicThumbnail 
-                     videoUrl={ep.qualities?.[0]?.url} 
-                     fallbackImg={data.landscape_thumbnail_url || data.thumbnail_url || null} 
-                     backupFallbackImg={data.backup_thumbnail_url || null}
-                   />
+                   {settings?.show_episode_thumbnails !== false && (
+                     <DynamicThumbnail 
+                       videoUrl={ep.qualities?.[0]?.url} 
+                       fallbackImg={data.landscape_thumbnail_url || data.thumbnail_url || null} 
+                       backupFallbackImg={data.backup_thumbnail_url || null}
+                     />
+                   )}
                    <div className="flex-1 overflow-hidden">
                      <h4 className="font-bold text-sm md:text-base text-gray-900 dark:text-zinc-200 truncate group-hover:text-[#ff2e7a] transition">{ep.title}</h4>
                      <p className="text-xs text-gray-500 dark:text-zinc-500 mt-1">S{data.content_data[activeSeasonIdx].season} E{ep.episode || idx + 1}</p>

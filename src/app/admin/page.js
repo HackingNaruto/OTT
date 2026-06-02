@@ -49,6 +49,7 @@ export default function Admin() {
   const [autoFullscreenEnabled, setAutoFullscreenEnabled] = useState(false);
   const [showContinueWatching, setShowContinueWatching] = useState(true);
   const [showNewArrivals, setShowNewArrivals] = useState(true);
+  const [showEpisodeThumbnails, setShowEpisodeThumbnails] = useState(true);
 
   // Fetch Settings on Mount
   useEffect(() => {
@@ -66,6 +67,7 @@ export default function Admin() {
         setAutoFullscreenEnabled(data.auto_fullscreen_enabled || false);
         setShowContinueWatching(data.show_continue_watching !== false);
         setShowNewArrivals(data.show_new_arrivals !== false);
+        setShowEpisodeThumbnails(data.show_episode_thumbnails !== false);
       }
     }
     fetchSettings();
@@ -243,7 +245,8 @@ export default function Admin() {
       watermark_position: watermarkPosition,
       auto_fullscreen_enabled: autoFullscreenEnabled,
       show_continue_watching: showContinueWatching,
-      show_new_arrivals: showNewArrivals
+      show_new_arrivals: showNewArrivals,
+      show_episode_thumbnails: showEpisodeThumbnails
     });
     setLoading(false);
     if (error) alert('Error saving settings: ' + error.message);
@@ -726,8 +729,13 @@ export default function Admin() {
                 <span className="font-bold text-gray-700 dark:text-zinc-300">Show 'Continue Watching' Section on Homepage</span>
               </label>
               <label className="flex items-center gap-3 cursor-pointer mt-4">
-                <input type="checkbox" className="w-5 h-5 accent-red-600" checked={showNewArrivals} onChange={e => setShowNewArrivals(e.target.checked)} />
-                <span className="font-bold text-gray-700 dark:text-zinc-300">Show 'New Arrivals' Section on Homepage</span>
+                <input type="checkbox" className="w-5 h-5 accent-red-600 rounded bg-zinc-900 border-zinc-800" checked={showNewArrivals} onChange={e => setShowNewArrivals(e.target.checked)} />
+                <span className="font-bold text-zinc-300">Show 'New Arrivals' Section on Homepage</span>
+              </label>
+
+              <label className="flex items-center gap-3 cursor-pointer p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl hover:border-zinc-700 transition">
+                <input type="checkbox" className="w-5 h-5 accent-red-600 rounded bg-zinc-900 border-zinc-800" checked={showEpisodeThumbnails} onChange={e => setShowEpisodeThumbnails(e.target.checked)} />
+                <span className="font-bold text-zinc-300">Show Episode Thumbnails in Player</span>
               </label>
             </div>
 
