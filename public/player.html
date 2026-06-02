@@ -350,6 +350,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     }
     
     video.addEventListener('play', () => {
+        initAudio();
         window.parent.postMessage({ type: 'PLAYER_STATE', isPlaying: true }, '*');
     });
     
@@ -418,6 +419,48 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     }, 2000);
 
     // Custom Watermark Engine handles positioning above
+
+    // -----------------------------------------------------
+    // 2.5 AUDIO DOWNMIX (DOLBY DIGITAL 5.1 TO STEREO)
+    // -----------------------------------------------------
+    let audioCtx = null;
+    let audioInitialized = false;
+
+    function initAudio() {
+        if (audioInitialized) {
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return;
+        }
+        audioInitialized = true;
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioCtx.createMediaElementSource(video);
+            const splitter = audioCtx.createChannelSplitter(6); // 5.1 channels
+            const merger = audioCtx.createChannelMerger(2); // Stereo out
+            const gainNode = audioCtx.createGain(); // Volume boost utility
+            
+            // 50% volume boost to compensate for lost channel energy
+            gainNode.gain.value = 1.5; 
+            
+            // Downmix Left, Right, and Center (Dialogues) to Stereo Left/Right
+            splitter.connect(merger, 0, 0); // L -> L
+            splitter.connect(merger, 1, 1); // R -> R
+            splitter.connect(merger, 2, 0); // C -> L
+            splitter.connect(merger, 2, 1); // C -> R
+            
+            source.connect(splitter);
+            merger.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        } catch (e) {
+            console.error("Web Audio API Downmix setup failed:", e);
+        }
+    }
 
     // -----------------------------------------------------
     // 3. PLAYER CONTROLS & LOGIC
