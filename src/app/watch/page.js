@@ -258,60 +258,62 @@ function PlayerUI() {
         try {
           const video = document.createElement('video');
           video.crossOrigin = 'anonymous';
-          video.src = currentUrl;
           video.muted = true;
           video.playsInline = true;
-          
-          await new Promise((resolve, reject) => {
-             video.onloadedmetadata = () => {
-                 video.currentTime = video.duration > 0 ? video.duration / 2 : 10;
-             };
-             video.onseeked = () => {
-                 resolve();
-             };
-             video.onerror = (e) => reject(e);
-          });
 
-          const canvas = document.createElement('canvas');
-          canvas.width = video.videoWidth || 1280;
-          canvas.height = video.videoHeight || 720;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          
-          canvas.toBlob(async (blob) => {
-             if(blob) {
-                 const catboxFormData = new FormData();
-                 catboxFormData.append('reqtype', 'fileupload');
-                 catboxFormData.append('fileToUpload', blob, 'thumb.jpg');
-                 
-                 const imgbbFormData = new FormData();
-                 imgbbFormData.append('image', blob, 'thumb.jpg');
-                 // Note: Replace 'YOUR_IMGBB_API_KEY' with a real key for production
-                 const IMGBB_API_KEY = 'YOUR_IMGBB_API_KEY';
-                 
-                 const uploadToCatbox = fetch('https://catbox.moe/user/api.php', {
-                     method: 'POST',
-                     body: catboxFormData
-                 }).then(res => res.text()).catch(() => null);
+          video.onloadedmetadata = () => {
+              video.currentTime = video.duration > 0 ? video.duration / 2 : 10;
+          };
 
-                 const uploadToImgbb = fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-                     method: 'POST',
-                     body: imgbbFormData
-                 }).then(res => res.json()).then(data => data?.data?.url).catch(() => null);
+          video.onseeked = () => {
+              const canvas = document.createElement('canvas');
+              canvas.width = 640;
+              canvas.height = 360;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              
+              canvas.toBlob(async (blob) => {
+                 if(blob) {
+                     const catboxFormData = new FormData();
+                     catboxFormData.append('reqtype', 'fileupload');
+                     catboxFormData.append('fileToUpload', blob, 'thumb.jpg');
+                     
+                     const imgbbFormData = new FormData();
+                     imgbbFormData.append('image', blob, 'thumb.jpg');
+                     // Note: Replace 'YOUR_IMGBB_API_KEY' with a real key for production
+                     const IMGBB_API_KEY = 'YOUR_IMGBB_API_KEY';
+                     
+                     const uploadToCatbox = fetch('https://catbox.moe/user/api.php', {
+                         method: 'POST',
+                         body: catboxFormData
+                     }).then(res => res.text()).catch(() => null);
 
-                 const [catboxUrl, imgbbUrl] = await Promise.all([uploadToCatbox, uploadToImgbb]);
-                 
-                 const updates = {};
-                 if (catboxUrl && catboxUrl.startsWith('http')) updates.landscape_thumbnail_url = catboxUrl;
-                 if (imgbbUrl && imgbbUrl.startsWith('http')) updates.backup_thumbnail_url = imgbbUrl;
-                 
-                 if (Object.keys(updates).length > 0) {
-                     await supabase.from('movies').update(updates).eq('id', data.id);
-                     setData(prev => ({ ...prev, ...updates }));
+                     const uploadToImgbb = fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                         method: 'POST',
+                         body: imgbbFormData
+                     }).then(res => res.json()).then(d => d?.data?.url).catch(() => null);
+
+                     const [catboxUrl, imgbbUrl] = await Promise.all([uploadToCatbox, uploadToImgbb]);
+                     
+                     const updates = {};
+                     if (catboxUrl && catboxUrl.startsWith('http')) updates.landscape_thumbnail_url = catboxUrl;
+                     if (imgbbUrl && imgbbUrl.startsWith('http')) updates.backup_thumbnail_url = imgbbUrl;
+                     
+                     if (Object.keys(updates).length > 0) {
+                         await supabase.from('movies').update(updates).eq('id', data.id);
+                         setData(prev => ({ ...prev, ...updates }));
+                     }
                  }
-             }
-             setIsGeneratingThumbnail(false);
-          }, 'image/jpeg', 0.5);
+                 setIsGeneratingThumbnail(false);
+              }, 'image/jpeg', 0.4);
+          };
+
+          video.onerror = (e) => {
+              console.log("Failed to load video for thumbnail", e);
+              setIsGeneratingThumbnail(false);
+          };
+
+          video.src = currentUrl;
 
         } catch(e) {
           console.log("Failed to generate thumbnail", e);
