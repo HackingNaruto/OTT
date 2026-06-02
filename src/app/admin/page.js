@@ -251,10 +251,12 @@ export default function Admin() {
   };
 
   const [isGeneratingInstantThumb, setIsGeneratingInstantThumb] = useState(false);
+  const [generatingIndex, setGeneratingIndex] = useState(null);
 
-  const generateInstantThumbnail = async (targetUrl) => {
-    if (!targetUrl) return alert("Please enter a Video URL first.");
+  const generateInstantThumbnail = async (targetUrl, sIdx = null, eIdx = null) => {
+    if (!targetUrl || targetUrl.trim() === "") return alert("Please enter a Video URL first.");
     setIsGeneratingInstantThumb(true);
+    setGeneratingIndex(sIdx !== null && eIdx !== null ? `${sIdx}-${eIdx}` : 'main');
     try {
       const video = document.createElement('video');
       video.crossOrigin = 'anonymous';
@@ -306,8 +308,17 @@ export default function Admin() {
 
                      const [catboxUrl, imgbbUrl] = await Promise.all([uploadToCatbox, uploadToImgbb]);
 
-                     if (catboxUrl && catboxUrl.startsWith('http')) setLandscapeThumbnailUrl(catboxUrl);
-                     if (imgbbUrl && imgbbUrl.startsWith('http')) setBackupThumbnailUrl(imgbbUrl);
+                     if ((catboxUrl && catboxUrl.startsWith('http')) || (imgbbUrl && imgbbUrl.startsWith('http'))) {
+                         if (sIdx !== null && eIdx !== null) {
+                             const newSeasons = [...seasons];
+                             if (catboxUrl && catboxUrl.startsWith('http')) newSeasons[sIdx].episodes[eIdx].landscape_thumbnail_url = catboxUrl;
+                             if (imgbbUrl && imgbbUrl.startsWith('http')) newSeasons[sIdx].episodes[eIdx].backup_thumbnail_url = imgbbUrl;
+                             setSeasons(newSeasons);
+                         } else {
+                             if (catboxUrl && catboxUrl.startsWith('http')) setLandscapeThumbnailUrl(catboxUrl);
+                             if (imgbbUrl && imgbbUrl.startsWith('http')) setBackupThumbnailUrl(imgbbUrl);
+                         }
+                     }
 
                      alert("Thumbnail Captured Instantly!");
                  }
@@ -334,8 +345,8 @@ export default function Admin() {
     } catch(e) {
       alert("Failed to capture thumbnail. Make sure the video URL is valid and supports CORS.");
       console.log(e);
-    }
     setIsGeneratingInstantThumb(false);
+    setGeneratingIndex(null);
   };
 
   // --- Movie Quality Handlers ---
@@ -511,7 +522,7 @@ export default function Admin() {
                  <div className="flex gap-2">
                    <input type="text" placeholder="Fallback Video URL (Optional)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
                    <button type="button" onClick={() => generateInstantThumbnail(videoUrl)} disabled={isGeneratingInstantThumb} className="whitespace-nowrap px-4 py-3 bg-red-900/30 text-red-500 font-bold border border-red-900/50 rounded-xl hover:bg-red-600 hover:text-white transition disabled:opacity-50 text-sm">
-                     {isGeneratingInstantThumb ? 'Capturing...' : '📸 Instant Auto-Thumb'}
+                     {isGeneratingInstantThumb && generatingIndex === 'main' ? 'Capturing...' : '📸 Instant Auto-Thumb'}
                    </button>
                  </div>
               </div>
@@ -616,8 +627,8 @@ export default function Admin() {
                               <div key={qIdx} className="flex gap-2">
                                  <input type="text" placeholder="1080p" className="w-20 bg-black border border-zinc-800 rounded px-2 py-1 text-xs outline-none focus:border-red-600" value={q.quality} onChange={e => updateEpisodeQuality(sIdx, eIdx, qIdx, 'quality', e.target.value)} required />
                                  <input type="text" placeholder="Source URL" className="flex-1 bg-black border border-zinc-800 rounded px-2 py-1 text-xs outline-none focus:border-red-600" value={q.url} onChange={e => updateEpisodeQuality(sIdx, eIdx, qIdx, 'url', e.target.value)} required />
-                                 <button type="button" onClick={() => generateInstantThumbnail(q.url)} disabled={isGeneratingInstantThumb} className="whitespace-nowrap px-2 bg-red-900/30 text-red-500 hover:text-white rounded text-[10px] font-bold border border-red-900/50 disabled:opacity-50">
-                                   {isGeneratingInstantThumb ? '...' : '📸'}
+                                 <button type="button" onClick={() => generateInstantThumbnail(q.url, sIdx, eIdx)} disabled={isGeneratingInstantThumb} className="whitespace-nowrap px-2 bg-red-900/30 text-red-500 hover:text-white rounded text-[10px] font-bold border border-red-900/50 disabled:opacity-50">
+                                   {isGeneratingInstantThumb && generatingIndex === `${sIdx}-${eIdx}` ? '...' : '📸'}
                                  </button>
                                  {ep.qualities.length > 1 && <button type="button" onClick={() => removeEpisodeQuality(sIdx, eIdx, qIdx)} className="text-red-900 hover:text-red-500 px-2 text-xs"><i className="fas fa-times"></i></button>}
                               </div>
