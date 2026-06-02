@@ -4,7 +4,7 @@ export const revalidate = 0; // Ensure dynamic metadata is always fresh
 export const dynamic = 'force-dynamic';
 export async function generateMetadata() {
   const { data } = await supabase.from('site_settings').select('site_name').eq('id', 1).single();
-  const siteName = data?.site_name || 'StreamX';
+  const siteName = data?.site_name || 'Premium OTT';
   return {
     title: `${siteName} - Premium Streaming`,
     description: 'Premium Secure Streaming App',

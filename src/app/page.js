@@ -6,7 +6,7 @@ import Link from 'next/link';
 export default function Home() {
   const [movies, setMovies] = useState([]);
   const [trendingMovies, setTrendingMovies] = useState([]);
-  const [siteName, setSiteName] = useState('STREAMX');
+  const [siteName, setSiteName] = useState('');
   const [loading, setLoading] = useState(true);
   const [trendingEnabled, setTrendingEnabled] = useState(false);
   const [themeToggleEnabled, setThemeToggleEnabled] = useState(false);

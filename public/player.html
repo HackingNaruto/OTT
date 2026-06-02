@@ -55,7 +55,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
 
 <div class="main-wrapper">
     <div class="video-wrapper" id="vWrapper">
-        <div id="watermark">StreamX Protected</div>
+        <div id="watermark"></div>
         <button id="lockBtn" class="lock-btn" onclick="toggleLock(event)"><i class="fas fa-lock-open"></i></button>
         
         <div id="gestureOverlay" class="gesture-overlay"></div>
@@ -150,7 +150,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     const deobfuscateUrl = (str) => {
         if (!str) return '';
         try {
-            const noSalt = str.replace('STREAMX_SECURE', '');
+            const noSalt = str.replace('SITE_SECURE_SALT', '');
             return atob(noSalt.split('').reverse().join(''));
         } catch (e) {
             return '';
@@ -182,7 +182,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     const title = params.get('title') || 'External Stream';
     const wmText = params.get('wm_text') || '';
     const wmEnable = params.get('wm_enable') === 'true';
-    const siteName = params.get('site_name') || 'StreamX';
+    const siteName = params.get('site_name') || 'Premium OTT';
     const wmMove = params.get('wm_move') || 'static';
     const wmSize = params.get('wm_size') || '14px';
     const wmPos = params.get('wm_pos') || 'bottom-right';

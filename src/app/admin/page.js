@@ -30,6 +30,7 @@ export default function Admin() {
   const [movieQualities, setMovieQualities] = useState([{ quality: '1080p', url: '' }]);
   const [seasons, setSeasons] = useState([{ season: 1, episodes: [{ episode: 1, title: 'Episode 1', qualities: [{ quality: '1080p', url: '' }] }] }]);
   const [bulkImportText, setBulkImportText] = useState('');
+  const [movieBulkImportText, setMovieBulkImportText] = useState('');
 
   // -- Manage List State --
   const [existingContent, setExistingContent] = useState([]);
@@ -297,6 +298,46 @@ export default function Admin() {
     }
   };
 
+  const handleMovieBulkImport = async () => {
+    if (!movieBulkImportText.trim()) return;
+    const lines = movieBulkImportText.split('\n');
+    const moviesToInsert = [];
+    
+    lines.forEach(line => {
+      const parts = line.split('|').map(p => p.trim());
+      if (parts.length >= 6) {
+        const [mTitle, mType, thumb, landThumb, url, quality] = parts;
+        if (mType.toLowerCase() === 'movie') {
+          moviesToInsert.push({
+            title: mTitle,
+            short_title: mTitle,
+            thumbnail_url: thumb,
+            landscape_thumbnail_url: landThumb,
+            type: 'movie',
+            content_data: [{ quality: quality, url: url }]
+          });
+        }
+      }
+    });
+
+    if (moviesToInsert.length > 0) {
+      setLoading(true);
+      const { data, error } = await supabase.from('movies').insert(moviesToInsert).select();
+      setLoading(false);
+      
+      if (error) {
+        alert('Error during bulk import: ' + error.message);
+      } else {
+        setMovieBulkImportText('');
+        if (data) setExistingContent(prev => [...data, ...prev]);
+        alert(`Successfully imported ${moviesToInsert.length} movies!`);
+        setActiveTab('manage');
+      }
+    } else {
+      alert('No valid movies found. Ensure format is: Title | Type | Thumbnail URL | Landscape URL | Content URL | Quality');
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-white flex items-center justify-center p-4 transition-colors">
@@ -379,11 +420,27 @@ export default function Admin() {
 
             {/* Movie Builder */}
             {type === 'movie' && (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
-                  <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Video Sources</h3>
+              <div className="space-y-8">
+                {/* Bulk Import for Movies */}
+                <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 space-y-3">
+                  <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Bulk Import Movies</h3>
+                  <p className="text-xs text-zinc-500">Format: <code className="bg-black px-1 py-0.5 rounded text-red-400">Title | Type | Thumbnail URL | Landscape URL | Content URL | Quality</code></p>
+                  <textarea 
+                    className="w-full bg-black border border-zinc-800 rounded-lg px-4 py-3 text-sm focus:border-red-600 outline-none font-mono h-32"
+                    placeholder="Fast 9 | movie | https://thumb.jpg | https://land.jpg | https://vid.mp4 | 1080p"
+                    value={movieBulkImportText}
+                    onChange={(e) => setMovieBulkImportText(e.target.value)}
+                  />
+                  <button type="button" onClick={handleMovieBulkImport} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg text-sm transition">
+                    Process Import
+                  </button>
                 </div>
-                {movieQualities.map((q, idx) => (
+                
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
+                    <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Video Sources</h3>
+                  </div>
+                  {movieQualities.map((q, idx) => (
                   <div key={idx} className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
                     <input type="text" placeholder="Quality (e.g. 1080p)" className="w-full sm:w-1/4 bg-zinc-900/50 border border-zinc-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-600" value={q.quality} onChange={e => updateMovieQuality(idx, 'quality', e.target.value)} required />
                     <div className="flex w-full sm:flex-1 gap-2">
@@ -392,7 +449,8 @@ export default function Admin() {
                     </div>
                   </div>
                 ))}
-                <button type="button" onClick={addMovieQuality} className="w-full py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-sm text-zinc-300 hover:bg-zinc-800">+ Add Source</button>
+                  <button type="button" onClick={addMovieQuality} className="w-full py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-sm text-zinc-300 hover:bg-zinc-800">+ Add Source</button>
+                </div>
               </div>
             )}
 
