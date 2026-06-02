@@ -4,6 +4,43 @@ import { Suspense, useEffect, useState, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
 
+function DynamicThumbnail({ videoUrl, fallbackImg }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const [error, setError] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '50px' }
+    );
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={containerRef} className="w-28 h-16 md:w-36 md:h-20 bg-zinc-900 rounded-lg overflow-hidden flex-shrink-0 relative border border-gray-200 dark:border-zinc-800">
+      {isVisible && !error && videoUrl ? (
+        <video 
+          src={`${videoUrl}#t=10`} 
+          preload="metadata" 
+          muted 
+          playsInline 
+          className="object-cover w-full h-full pointer-events-none"
+          onError={() => setError(true)}
+        />
+      ) : (
+        <img src={fallbackImg} alt="Thumbnail" className="object-cover w-full h-full" />
+      )}
+    </div>
+  );
+}
+
 function PlayerUI() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
@@ -172,6 +209,31 @@ function PlayerUI() {
     }
   }, [data, activeSeasonIdx, activeEpisodeIdx]);
 
+  // Pass episode data to player for fullscreen drawer
+  useEffect(() => {
+    if (data?.type === 'series' && data.content_data?.[activeSeasonIdx] && iframeRef.current?.contentWindow) {
+      const episodes = data.content_data[activeSeasonIdx].episodes.map((ep, idx) => ({
+        title: ep.title,
+        videoUrl: ep.qualities?.[0]?.url || '',
+        fallbackImg: data.landscape_thumbnail_url || data.thumbnail_url,
+        season: data.content_data[activeSeasonIdx].season,
+        episode: ep.episode || idx + 1
+      }));
+      iframeRef.current.contentWindow.postMessage({ type: 'INIT_EPISODES', episodes, currentIndex: activeEpisodeIdx }, '*');
+    }
+  }, [data, activeSeasonIdx, activeEpisodeIdx]);
+
+  // Handle messages from iframe (e.g. Change Episode)
+  useEffect(() => {
+    const handleMessage = (e) => {
+      if (e.data?.type === 'CHANGE_EPISODE' && typeof e.data.index === 'number') {
+        handleEpisodeChange(e.data.index);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [data, activeSeasonIdx]);
+
   if (!id) return <div className="text-white text-center mt-20">Invalid Content ID</div>;
   if (loading) return <div className="text-zinc-500 text-center mt-20 animate-pulse">Loading Content...</div>;
   if (!data) return <div className="text-white text-center mt-20">Content not found.</div>;
@@ -298,15 +360,21 @@ function PlayerUI() {
             </div>
 
             {/* Episodes List */}
-            <div className="space-y-2">
+            <div className="space-y-3">
                {data.content_data[activeSeasonIdx]?.episodes?.map((ep, idx) => (
                  <div 
                    key={idx}
                    onClick={() => handleEpisodeChange(idx)}
-                   className={`flex items-center justify-between p-4 bg-white dark:bg-zinc-900/40 hover:bg-gray-50 dark:hover:bg-zinc-800/80 rounded-xl cursor-pointer transition group border border-gray-100 dark:border-transparent ${activeEpisodeIdx === idx ? 'border-l-4 border-l-[#ff2e7a] dark:border-l-[#ff2e7a]' : ''}`}
+                   className={`flex items-center gap-4 p-3 bg-white dark:bg-zinc-900/40 hover:bg-gray-50 dark:hover:bg-zinc-800/80 rounded-xl cursor-pointer transition group border border-gray-100 dark:border-transparent ${activeEpisodeIdx === idx ? 'border-l-4 border-l-[#ff2e7a] dark:border-l-[#ff2e7a]' : ''}`}
                  >
-                   <span className="font-semibold text-gray-900 dark:text-zinc-200">{ep.title}</span>
-                   <i className="fas fa-play text-xs text-gray-400 dark:text-white/30 group-hover:text-gray-900 dark:group-hover:text-white transition"></i>
+                   <DynamicThumbnail videoUrl={ep.qualities?.[0]?.url} fallbackImg={data.landscape_thumbnail_url || data.thumbnail_url} />
+                   <div className="flex-1 overflow-hidden">
+                     <h4 className="font-bold text-sm md:text-base text-gray-900 dark:text-zinc-200 truncate group-hover:text-[#ff2e7a] transition">{ep.title}</h4>
+                     <p className="text-xs text-gray-500 dark:text-zinc-500 mt-1">S{data.content_data[activeSeasonIdx].season} E{ep.episode || idx + 1}</p>
+                   </div>
+                   <div className="hidden md:flex flex-shrink-0 items-center justify-center w-8 h-8 rounded-full bg-gray-100 dark:bg-zinc-800 group-hover:bg-[#ff2e7a] group-hover:text-white transition text-gray-400 dark:text-zinc-500">
+                     <i className="fas fa-play text-[10px] pl-0.5"></i>
+                   </div>
                  </div>
                ))}
             </div>
