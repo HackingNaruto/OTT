@@ -231,19 +231,6 @@ function PlayerUI() {
     }
   }, [data, activeSeasonIdx, activeEpisodeIdx]);
 
-  // Pass episode data to player for fullscreen drawer
-  useEffect(() => {
-    if (data?.type === 'series' && data.content_data?.[activeSeasonIdx] && iframeRef.current?.contentWindow) {
-      const episodes = data.content_data[activeSeasonIdx].episodes.map((ep, idx) => ({
-        title: ep.title,
-        videoUrl: ep.qualities?.[0]?.url || '',
-        fallbackImg: data.landscape_thumbnail_url || data.thumbnail_url,
-        season: data.content_data[activeSeasonIdx].season,
-        episode: ep.episode || idx + 1
-      }));
-      iframeRef.current.contentWindow.postMessage({ type: 'INIT_EPISODES', episodes, currentIndex: activeEpisodeIdx }, '*');
-    }
-  }, [data, activeSeasonIdx, activeEpisodeIdx]);
 
   // Handle messages from iframe (e.g. Change Episode)
   useEffect(() => {
@@ -322,6 +309,18 @@ function PlayerUI() {
             className="w-full h-full border-none block"
             allowFullScreen
             allow="autoplay; encrypted-media"
+            onLoad={() => {
+              if (data?.type === 'series' && data.content_data?.[activeSeasonIdx] && iframeRef.current?.contentWindow) {
+                const episodes = data.content_data[activeSeasonIdx].episodes.map((ep, idx) => ({
+                  title: ep.title,
+                  videoUrl: ep.qualities?.[0]?.url || '',
+                  fallbackImg: data.landscape_thumbnail_url || data.thumbnail_url,
+                  season: data.content_data[activeSeasonIdx].season,
+                  episode: ep.episode || idx + 1
+                }));
+                iframeRef.current.contentWindow.postMessage({ type: 'INIT_EPISODES', episodes, currentIndex: activeEpisodeIdx }, '*');
+              }
+            }}
           />
         ) : (
           <div className="flex items-center justify-center w-full h-full text-zinc-500">No Video Source Available</div>
