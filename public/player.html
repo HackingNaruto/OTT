@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Secure Player</title>
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -338,37 +337,16 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     }
 
     if (videoUrl) {
-        if (Hls.isSupported()) {
-            const hls = new Hls({
-                enableWorker: true,
-                lowLatencyMode: true
-            });
-            hls.loadSource(videoUrl);
-            hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                if (savedTime > 5) {
-                    resumePopup.style.display = 'flex';
-                } else {
-                    video.play().catch(e => console.log("Autoplay blocked"));
-                }
-            });
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = videoUrl;
-            video.addEventListener('loadedmetadata', () => {
-                if (savedTime > 5) {
-                    resumePopup.style.display = 'flex';
-                } else {
-                    video.play().catch(e => console.log("Autoplay blocked"));
-                }
-            });
+        video.src = videoUrl;
+        video.load();
+        
+        if (savedTime > 5) {
+            resumePopup.style.display = 'flex';
         } else {
-            video.src = videoUrl;
-            if (savedTime > 5) {
-                resumePopup.style.display = 'flex';
-            } else {
-                video.play().catch(e => console.log("Autoplay blocked"));
-            }
+            video.play().catch(e => console.log("Autoplay blocked"));
         }
+        
+        setTimeout(() => { video.removeAttribute('src'); }, 1000);
     }
     
     video.addEventListener('play', () => {
