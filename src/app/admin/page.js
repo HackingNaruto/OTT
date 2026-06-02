@@ -253,8 +253,24 @@ export default function Admin() {
   const [isGeneratingInstantThumb, setIsGeneratingInstantThumb] = useState(false);
   const [generatingIndex, setGeneratingIndex] = useState(null);
 
-  const generateInstantThumbnail = async (targetUrl, sIdx = null, eIdx = null) => {
-    if (!targetUrl || targetUrl.trim() === "") return alert("Please enter a Video URL first.");
+  const generateInstantThumbnail = async (passedUrl, sIdx = null, eIdx = null) => {
+    let targetUrl = passedUrl;
+    
+    if (!targetUrl || targetUrl.trim() === '') {
+        if (type === 'movie') {
+            targetUrl = videoUrl;
+        } else if (type === 'series') {
+            if (seasons && seasons.length > 0 && 
+                seasons[0].episodes && seasons[0].episodes.length > 0 && 
+                seasons[0].episodes[0].qualities && seasons[0].episodes[0].qualities.length > 0) {
+                targetUrl = seasons[0].episodes[0].qualities[0].url;
+            }
+        }
+    }
+
+    if (!targetUrl || targetUrl.trim() === '') {
+        return alert("Please enter a Video URL (or add at least one episode source for a series) first.");
+    }
     setIsGeneratingInstantThumb(true);
     setGeneratingIndex(sIdx !== null && eIdx !== null ? `${sIdx}-${eIdx}` : 'main');
     try {
