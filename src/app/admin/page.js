@@ -50,6 +50,7 @@ export default function Admin() {
   const [showContinueWatching, setShowContinueWatching] = useState(true);
   const [showNewArrivals, setShowNewArrivals] = useState(true);
   const [showEpisodeThumbnails, setShowEpisodeThumbnails] = useState(true);
+  const [enableAudioApi, setEnableAudioApi] = useState(false);
 
   // Fetch Settings on Mount
   useEffect(() => {
@@ -68,6 +69,7 @@ export default function Admin() {
         setShowContinueWatching(data.show_continue_watching !== false);
         setShowNewArrivals(data.show_new_arrivals !== false);
         setShowEpisodeThumbnails(data.show_episode_thumbnails !== false);
+        setEnableAudioApi(data.enable_audio_api || false);
       }
     }
     fetchSettings();
@@ -246,7 +248,8 @@ export default function Admin() {
       auto_fullscreen_enabled: autoFullscreenEnabled,
       show_continue_watching: showContinueWatching,
       show_new_arrivals: showNewArrivals,
-      show_episode_thumbnails: showEpisodeThumbnails
+      show_episode_thumbnails: showEpisodeThumbnails,
+      enable_audio_api: enableAudioApi
     });
     setLoading(false);
     if (error) alert('Error saving settings: ' + error.message);
@@ -736,6 +739,11 @@ export default function Admin() {
               <label className="flex items-center gap-3 cursor-pointer p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl hover:border-zinc-700 transition">
                 <input type="checkbox" className="w-5 h-5 accent-red-600 rounded bg-zinc-900 border-zinc-800" checked={showEpisodeThumbnails} onChange={e => setShowEpisodeThumbnails(e.target.checked)} />
                 <span className="font-bold text-zinc-300">Show Episode Thumbnails in Player</span>
+              </label>
+
+              <label className="flex items-center gap-3 cursor-pointer p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl hover:border-zinc-700 transition">
+                <input type="checkbox" className="w-5 h-5 accent-red-600 rounded bg-zinc-900 border-zinc-800" checked={enableAudioApi} onChange={e => setEnableAudioApi(e.target.checked)} />
+                <span className="font-bold text-zinc-300">Enable External Audio API (MKV Track Demuxing)</span>
               </label>
             </div>
 

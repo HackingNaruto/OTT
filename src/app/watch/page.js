@@ -322,7 +322,8 @@ function PlayerUI() {
                   type: 'INIT_EPISODES', 
                   episodes, 
                   currentIndex: activeEpisodeIdx,
-                  showThumbnails: settings?.show_episode_thumbnails !== false 
+                  showThumbnails: settings?.show_episode_thumbnails !== false,
+                  enableAudioApi: settings?.enable_audio_api === true 
                 }, '*');
               }
             }}

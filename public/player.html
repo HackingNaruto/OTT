@@ -15,6 +15,7 @@ body { font-family: 'Poppins', sans-serif; background: #000; height: 100vh; widt
 .video-wrapper { position: relative; width: 100%; height: 100%; overflow: hidden; background: #000; display: flex; flex-direction: column; justify-content: center; }
 .video-wrapper:fullscreen { aspect-ratio: auto; height: 100vh; border-radius: 0; }
 video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-events: none; }
+audio { display: none; }
 .glass-overlay { position: absolute; top:0; left:0; width:100%; height:100%; z-index: 5; user-select: none; -webkit-touch-callout: none; pointer-events: auto; }
 
 /* Overlays & Controls */
@@ -68,7 +69,8 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         </div>
         
         <!-- Anti Download attributes -->
-        <video id="myVideo" playsinline controlsList="nodownload noplaybackrate"></video>
+        <video id="myVideo" playsinline controlsList="nodownload noplaybackrate" crossorigin="anonymous"></video>
+        <audio id="myAudio" crossorigin="anonymous"></audio>
         <div id="brightnessOverlay" style="position: absolute; top:0; left:0; width:100%; height:100%; background: black; opacity: 0; pointer-events: none; z-index: 4; transition: opacity 0.1s;"></div>
         <div id="glassOverlay" class="glass-overlay"></div>
 
@@ -95,6 +97,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
                 <div>
                     <button onclick="openEpisodeDrawer()" id="episodesBtn" title="More Episodes" class="hidden"><i class="fas fa-list-ul"></i></button>
                     <button onclick="toggleQualityPopup()" id="qualityBtn" title="Video Quality" style="display: none;"><i class="fas fa-cog"></i></button>
+                    <button onclick="toggleAudioPopup()" id="audioBtn" title="Audio Tracks" style="display: none;"><i class="fas fa-language"></i></button>
                     <button onclick="togglePiP()" title="Picture in Picture"><i class="fas fa-clone"></i></button>
                     <button onclick="cycleAspect()"><i class="fas fa-crop-alt"></i></button>
                     <button onclick="handleFullscreenClick()" style="margin-right: 0;"><i class="fas fa-expand"></i></button>
@@ -116,6 +119,14 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
                 <h2>Video Quality</h2>
                 <div id="qualityList" style="display: flex; flex-direction: column; gap: 8px;"></div>
                 <button style="background: #ff2e7a; margin-top: 15px;" onclick="toggleQualityPopup()">Close</button>
+            </div>
+        </div>
+
+        <div id="audioPopup" class="popup" onclick="toggleAudioPopup()">
+            <div class="popup-content" style="max-width: 250px; padding: 20px;" onclick="event.stopPropagation()">
+                <h2>Audio Tracks</h2>
+                <div id="audioList" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                <button style="background: #ff2e7a; margin-top: 15px;" onclick="toggleAudioPopup()">Close</button>
             </div>
         </div>
 
@@ -164,7 +175,12 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         if (e.data && e.data.type === 'INIT_EPISODES') {
             window.episodesData = e.data.episodes;
             window.showThumbnails = e.data.showThumbnails !== false;
+            window.enableAudioApi = e.data.enableAudioApi === true;
             buildEpisodeDrawer();
+            
+            if (window.enableAudioApi && typeof videoUrl !== 'undefined' && videoUrl) {
+                fetchAudioTracks(videoUrl);
+            }
         }
         if (e.data?.type === 'TOGGLE_PLAY') {
             const vid = document.getElementById('myVideo');
@@ -386,7 +402,121 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     });
 
     // -----------------------------------------------------
-    // 2. SECURITY MODULE (ANTI-PIRACY)
+    // 2.5 AUDIO API ENGINE (MKV TRACK DEMUXING)
+    // -----------------------------------------------------
+    const myAudio = document.getElementById('myAudio');
+    let audioCtx = null;
+    let gainNode = null;
+    let isAudioEngineActive = false;
+
+    async function fetchAudioTracks(url) {
+        try {
+            // Dynamically construct API URL by replacing direct path with /api/tracks/
+            const urlObj = new URL(url);
+            const apiUrl = url.replace(urlObj.pathname, '/api/tracks/');
+            
+            const res = await fetch(apiUrl);
+            if (!res.ok) return;
+            const data = await res.json();
+            
+            if (data && data.tracks && data.tracks.length > 1) {
+                isAudioEngineActive = true;
+                window.audioTracksData = data.tracks;
+                document.getElementById('audioBtn').style.display = 'inline-block';
+                const audioList = document.getElementById('audioList');
+                audioList.innerHTML = '';
+                
+                data.tracks.forEach((track, idx) => {
+                    const btn = document.createElement('button');
+                    btn.innerText = track.name || `Track ${idx + 1} (${track.language || 'Unknown'})`;
+                    btn.style.cssText = 'padding: 10px; background: #2a2a2a; border: 1px solid #444; border-radius: 5px; color: white; cursor: pointer; text-align: left; transition: 0.2s;';
+                    btn.onmouseover = () => btn.style.background = '#ff2e7a';
+                    btn.onmouseout = () => btn.style.background = '#2a2a2a';
+                    btn.onclick = () => {
+                        selectAudioTrack(track.stream_index || idx, urlObj.origin);
+                        toggleAudioPopup();
+                    };
+                    audioList.appendChild(btn);
+                });
+                
+                // Setup GainNode Hack
+                setupAudioGainNode();
+                
+                // Auto-select first track
+                selectAudioTrack(data.tracks[0].stream_index || 0, urlObj.origin);
+            }
+        } catch(e) {
+            console.error("Audio API fetch failed", e);
+        }
+    }
+
+    function toggleAudioPopup() {
+        const popup = document.getElementById('audioPopup');
+        popup.style.display = popup.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    function setupAudioGainNode() {
+        if (audioCtx) return;
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioCtx.createMediaElementSource(myAudio);
+            gainNode = audioCtx.createGain();
+            gainNode.gain.value = 1.0; 
+            
+            source.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            // silenceVideo() logic
+            video.volume = 0;
+            video.muted = true;
+        } catch(e) {
+            console.error("GainNode setup failed", e);
+        }
+    }
+
+    function selectAudioTrack(streamIndex, origin) {
+        // Play fetched '/audio/{stream_index}/' paths
+        const audioUrl = `${origin}/audio/${streamIndex}/`;
+        const wasPaused = video.paused;
+        const currentTime = video.currentTime;
+        
+        myAudio.src = audioUrl;
+        myAudio.currentTime = currentTime;
+        
+        if (!wasPaused) {
+            video.play();
+            myAudio.play().catch(e => console.log("Audio autoplay blocked"));
+        }
+    }
+
+    // Synchronization logic
+    video.addEventListener('play', () => {
+        if (isAudioEngineActive) {
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            myAudio.play().catch(e => console.log("Audio play blocked"));
+        }
+    });
+    
+    video.addEventListener('pause', () => {
+        if (isAudioEngineActive) myAudio.pause();
+    });
+    
+    video.addEventListener('seeking', () => {
+        if (isAudioEngineActive) myAudio.currentTime = video.currentTime;
+    });
+    
+    video.addEventListener('seeked', () => {
+        if (isAudioEngineActive) myAudio.currentTime = video.currentTime;
+    });
+    
+    video.addEventListener('timeupdate', () => {
+        if (isAudioEngineActive && Math.abs(myAudio.currentTime - video.currentTime) > 0.5) {
+            myAudio.currentTime = video.currentTime;
+        }
+    });
+
+    // -----------------------------------------------------
+    // 3. SECURITY MODULE (ANTI-PIRACY)
     // -----------------------------------------------------
     
     // Block Right Click
@@ -491,9 +621,16 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
 
     // Desktop Volume Slider binding
     document.getElementById('desktopVolume').addEventListener('input', function() {
-        video.volume = this.value;
-        document.getElementById('muteIcon').className = video.volume === 0 ? "fas fa-volume-mute" : "fas fa-volume-up";
-        showOverlay((video.volume === 0 ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-up"></i>') + ' Volume: ' + Math.round(video.volume * 100) + '%');
+        if (isAudioEngineActive) {
+            if (gainNode) gainNode.gain.value = this.value;
+            myAudio.muted = this.value === "0";
+            document.getElementById('muteIcon').className = this.value === "0" ? "fas fa-volume-mute" : "fas fa-volume-up";
+            showOverlay((this.value === "0" ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-up"></i>') + ' Volume: ' + Math.round(this.value * 100) + '%');
+        } else {
+            video.volume = this.value;
+            document.getElementById('muteIcon').className = video.volume === 0 ? "fas fa-volume-mute" : "fas fa-volume-up";
+            showOverlay((video.volume === 0 ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-up"></i>') + ' Volume: ' + Math.round(video.volume * 100) + '%');
+        }
     });
 
     // VLC Keyboard Shortcuts
@@ -527,15 +664,31 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
                 break;
             case 'ArrowUp':
                 e.preventDefault();
-                video.volume = Math.min(1, video.volume + 0.1);
-                document.getElementById('desktopVolume').value = video.volume;
-                showOverlay('<i class="fas fa-volume-up"></i> Volume: ' + Math.round(video.volume * 100) + '%');
+                if (isAudioEngineActive) {
+                    let newVol = Math.min(1, parseFloat(document.getElementById('desktopVolume').value) + 0.1);
+                    document.getElementById('desktopVolume').value = newVol;
+                    if (gainNode) gainNode.gain.value = newVol;
+                    myAudio.muted = newVol === 0;
+                    showOverlay('<i class="fas fa-volume-up"></i> Volume: ' + Math.round(newVol * 100) + '%');
+                } else {
+                    video.volume = Math.min(1, video.volume + 0.1);
+                    document.getElementById('desktopVolume').value = video.volume;
+                    showOverlay('<i class="fas fa-volume-up"></i> Volume: ' + Math.round(video.volume * 100) + '%');
+                }
                 break;
             case 'ArrowDown':
                 e.preventDefault();
-                video.volume = Math.max(0, video.volume - 0.1);
-                document.getElementById('desktopVolume').value = video.volume;
-                showOverlay((video.volume === 0 ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-down"></i>') + ' Volume: ' + Math.round(video.volume * 100) + '%');
+                if (isAudioEngineActive) {
+                    let newVol = Math.max(0, parseFloat(document.getElementById('desktopVolume').value) - 0.1);
+                    document.getElementById('desktopVolume').value = newVol;
+                    if (gainNode) gainNode.gain.value = newVol;
+                    myAudio.muted = newVol === 0;
+                    showOverlay((newVol === 0 ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-down"></i>') + ' Volume: ' + Math.round(newVol * 100) + '%');
+                } else {
+                    video.volume = Math.max(0, video.volume - 0.1);
+                    document.getElementById('desktopVolume').value = video.volume;
+                    showOverlay((video.volume === 0 ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-down"></i>') + ' Volume: ' + Math.round(video.volume * 100) + '%');
+                }
                 break;
         }
     });
@@ -560,9 +713,15 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     }
 
     function toggleMute() {
-        video.muted = !video.muted;
-        document.getElementById('muteIcon').className = video.muted ? "fas fa-volume-mute" : "fas fa-volume-up";
-        showOverlay(video.muted ? '<i class="fas fa-volume-mute"></i> Muted' : '<i class="fas fa-volume-up"></i> Unmuted');
+        if (isAudioEngineActive) {
+            myAudio.muted = !myAudio.muted;
+            document.getElementById('muteIcon').className = myAudio.muted ? "fas fa-volume-mute" : "fas fa-volume-up";
+            showOverlay(myAudio.muted ? '<i class="fas fa-volume-mute"></i> Muted' : '<i class="fas fa-volume-up"></i> Unmuted');
+        } else {
+            video.muted = !video.muted;
+            document.getElementById('muteIcon').className = video.muted ? "fas fa-volume-mute" : "fas fa-volume-up";
+            showOverlay(video.muted ? '<i class="fas fa-volume-mute"></i> Muted' : '<i class="fas fa-volume-up"></i> Unmuted');
+        }
     }
 
     const speedPopup = document.getElementById('speedPopup');
