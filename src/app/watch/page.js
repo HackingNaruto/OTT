@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
 
-function DynamicThumbnail({ videoUrl, fallbackImg }) {
+function DynamicThumbnail({ videoUrl, fallbackImg, isGenerating }) {
   const [isVisible, setIsVisible] = useState(false);
   const [error, setError] = useState(false);
   const containerRef = useRef(null);
@@ -24,7 +24,7 @@ function DynamicThumbnail({ videoUrl, fallbackImg }) {
   }, []);
 
   return (
-    <div ref={containerRef} className="w-28 h-16 md:w-36 md:h-20 bg-zinc-900 rounded-lg overflow-hidden flex-shrink-0 relative border border-gray-200 dark:border-zinc-800">
+    <div ref={containerRef} className={`w-28 h-16 md:w-36 md:h-20 bg-zinc-900 rounded-lg overflow-hidden flex-shrink-0 relative border border-gray-200 dark:border-zinc-800 ${isGenerating && !fallbackImg ? 'animate-pulse' : ''}`}>
       {isVisible && !error && videoUrl ? (
         <video 
           src={`${videoUrl}#t=10`} 
@@ -34,8 +34,12 @@ function DynamicThumbnail({ videoUrl, fallbackImg }) {
           className="object-cover w-full h-full pointer-events-none"
           onError={() => setError(true)}
         />
-      ) : (
+      ) : fallbackImg ? (
         <img src={fallbackImg} alt="Thumbnail" className="object-cover w-full h-full" />
+      ) : (
+        <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+            {isGenerating && <i className="fas fa-spinner fa-spin text-zinc-500 text-sm"></i>}
+        </div>
       )}
     </div>
   );
@@ -48,6 +52,7 @@ function PlayerUI() {
   const [data, setData] = useState(null);
   const [settings, setSettings] = useState({ watermark_enabled: false, watermark_text: '' });
   const [loading, setLoading] = useState(true);
+  const [isGeneratingThumbnail, setIsGeneratingThumbnail] = useState(false);
   
   // States
   const [activeSeasonIdx, setActiveSeasonIdx] = useState(0);
@@ -234,6 +239,67 @@ function PlayerUI() {
     return () => window.removeEventListener('message', handleMessage);
   }, [data, activeSeasonIdx]);
 
+  // Automated Thumbnail Generator
+  useEffect(() => {
+    async function generateAndUploadThumbnail() {
+      if (data && !data.landscape_thumbnail_url && currentUrl && !isGeneratingThumbnail) {
+        setIsGeneratingThumbnail(true);
+        try {
+          const video = document.createElement('video');
+          video.crossOrigin = 'anonymous';
+          video.src = currentUrl;
+          video.muted = true;
+          video.playsInline = true;
+          
+          await new Promise((resolve, reject) => {
+             video.onloadedmetadata = () => {
+                 video.currentTime = video.duration > 0 ? video.duration / 2 : 10;
+             };
+             video.onseeked = () => {
+                 resolve();
+             };
+             video.onerror = (e) => reject(e);
+          });
+
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth || 1280;
+          canvas.height = video.videoHeight || 720;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          
+          canvas.toBlob(async (blob) => {
+             if(blob) {
+                 const formData = new FormData();
+                 formData.append('reqtype', 'fileupload');
+                 formData.append('fileToUpload', blob, 'thumb.jpg');
+                 
+                 const res = await fetch('https://catbox.moe/user/api.php', {
+                     method: 'POST',
+                     body: formData
+                 });
+                 const uploadedUrl = await res.text();
+                 
+                 if(uploadedUrl && uploadedUrl.startsWith('http')) {
+                     await supabase.from('movies').update({ landscape_thumbnail_url: uploadedUrl }).eq('id', data.id);
+                     setData(prev => ({ ...prev, landscape_thumbnail_url: uploadedUrl }));
+                 }
+             }
+             setIsGeneratingThumbnail(false);
+          }, 'image/jpeg', 0.5);
+
+        } catch(e) {
+          console.log("Failed to generate thumbnail", e);
+          setIsGeneratingThumbnail(false);
+        }
+      }
+    }
+    
+    const timeout = setTimeout(() => {
+        generateAndUploadThumbnail();
+    }, 2000);
+    return () => clearTimeout(timeout);
+  }, [data?.id, data?.landscape_thumbnail_url, currentUrl]);
+
   if (!id) return <div className="text-white text-center mt-20">Invalid Content ID</div>;
   if (loading) return <div className="text-zinc-500 text-center mt-20 animate-pulse">Loading Content...</div>;
   if (!data) return <div className="text-white text-center mt-20">Content not found.</div>;
@@ -367,7 +433,11 @@ function PlayerUI() {
                    onClick={() => handleEpisodeChange(idx)}
                    className={`flex items-center gap-4 p-3 bg-white dark:bg-zinc-900/40 hover:bg-gray-50 dark:hover:bg-zinc-800/80 rounded-xl cursor-pointer transition group border border-gray-100 dark:border-transparent ${activeEpisodeIdx === idx ? 'border-l-4 border-l-[#ff2e7a] dark:border-l-[#ff2e7a]' : ''}`}
                  >
-                   <DynamicThumbnail videoUrl={ep.qualities?.[0]?.url} fallbackImg={data.landscape_thumbnail_url || data.thumbnail_url} />
+                   <DynamicThumbnail 
+                     videoUrl={ep.qualities?.[0]?.url} 
+                     fallbackImg={data.landscape_thumbnail_url || (!isGeneratingThumbnail ? data.thumbnail_url : null)} 
+                     isGenerating={isGeneratingThumbnail} 
+                   />
                    <div className="flex-1 overflow-hidden">
                      <h4 className="font-bold text-sm md:text-base text-gray-900 dark:text-zinc-200 truncate group-hover:text-[#ff2e7a] transition">{ep.title}</h4>
                      <p className="text-xs text-gray-500 dark:text-zinc-500 mt-1">S{data.content_data[activeSeasonIdx].season} E{ep.episode || idx + 1}</p>
