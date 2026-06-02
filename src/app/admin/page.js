@@ -168,7 +168,7 @@ export default function Admin() {
 
   const handleSubmitCMS = async (e) => {
     e.preventDefault();
-    if (!title || !thumbnailUrl) return alert('Title and Thumbnail are required!');
+    if (!title) return alert('Title is required!');
 
     setLoading(true);
 
@@ -181,10 +181,10 @@ export default function Admin() {
 
     const payload = {
       title,
-      short_title: shortTitle,
-      thumbnail_url: thumbnailUrl,
-      landscape_thumbnail_url: landscapeThumbnailUrl,
-      video_url: videoUrl,
+      short_title: shortTitle || '',
+      thumbnail_url: thumbnailUrl || '',
+      landscape_thumbnail_url: landscapeThumbnailUrl || '',
+      video_url: videoUrl || '',
       type,
       content_data: contentDataPayload
     };
@@ -311,8 +311,8 @@ export default function Admin() {
           moviesToInsert.push({
             title: mTitle,
             short_title: mTitle,
-            thumbnail_url: thumb,
-            landscape_thumbnail_url: landThumb,
+            thumbnail_url: thumb || '',
+            landscape_thumbnail_url: landThumb || '',
             type: 'movie',
             content_data: [{ quality: quality, url: url }]
           });
@@ -400,14 +400,14 @@ export default function Admin() {
                </div>
             )}
 
-            {/* Basic Info */}
+            {/* Basic Info (Manual Entry) */}
             <div className="space-y-4">
-              <h3 className="text-sm font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-widest border-b border-gray-200 dark:border-zinc-800 pb-2">Basic Info</h3>
+              <h3 className="text-sm font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-widest border-b border-gray-200 dark:border-zinc-800 pb-2">Method 1: Manual Data Entry</h3>
               <div className="flex flex-col gap-3">
                  <input type="text" placeholder="Title (Eg: Breaking Bad)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={title} onChange={e => setTitle(e.target.value)} required />
-                 <input type="text" placeholder="Short Title (For Homepage)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={shortTitle} onChange={e => setShortTitle(e.target.value)} />
-                 <input type="text" placeholder="Portrait Thumbnail URL" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={thumbnailUrl} onChange={e => setThumbnailUrl(e.target.value)} required />
-                 <input type="text" placeholder="Landscape Thumbnail URL (For Trending 16:9)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={landscapeThumbnailUrl} onChange={e => setLandscapeThumbnailUrl(e.target.value)} />
+                 <input type="text" placeholder="Short Title (Optional)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={shortTitle} onChange={e => setShortTitle(e.target.value)} />
+                 <input type="text" placeholder="Portrait Thumbnail URL (Optional)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={thumbnailUrl} onChange={e => setThumbnailUrl(e.target.value)} />
+                 <input type="text" placeholder="Landscape Thumbnail URL (Optional) (For Trending 16:9)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={landscapeThumbnailUrl} onChange={e => setLandscapeThumbnailUrl(e.target.value)} />
                  <input type="text" placeholder="Fallback Video URL (Optional)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
               </div>
             </div>
@@ -423,8 +423,9 @@ export default function Admin() {
               <div className="space-y-8">
                 {/* Bulk Import for Movies */}
                 <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 space-y-3">
-                  <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Bulk Import Movies</h3>
+                  <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Method 2: Bulk Import Movies</h3>
                   <p className="text-xs text-zinc-500">Format: <code className="bg-black px-1 py-0.5 rounded text-red-400">Title | Type | Thumbnail URL | Landscape URL | Content URL | Quality</code></p>
+                  <p className="text-xs text-zinc-500 italic">Leave thumbnails blank using empty pipes if needed: <code className="bg-black px-1 py-0.5 rounded text-zinc-400">Movie | movie | | | https://vid.mp4 | 1080p</code></p>
                   <textarea 
                     className="w-full bg-black border border-zinc-800 rounded-lg px-4 py-3 text-sm focus:border-red-600 outline-none font-mono h-32"
                     placeholder="Fast 9 | movie | https://thumb.jpg | https://land.jpg | https://vid.mp4 | 1080p"
@@ -432,13 +433,13 @@ export default function Admin() {
                     onChange={(e) => setMovieBulkImportText(e.target.value)}
                   />
                   <button type="button" onClick={handleMovieBulkImport} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg text-sm transition">
-                    Process Import
+                    Process Bulk Import
                   </button>
                 </div>
                 
                 <div className="space-y-4">
                   <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
-                    <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Video Sources</h3>
+                    <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Manual Video Sources</h3>
                   </div>
                   {movieQualities.map((q, idx) => (
                   <div key={idx} className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
@@ -460,7 +461,7 @@ export default function Admin() {
                 
                 {/* Bulk Import */}
                 <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 space-y-3">
-                  <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Bulk Import Episodes</h3>
+                  <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Method 2: Bulk Import Episodes</h3>
                   <p className="text-xs text-zinc-500">Format: <code className="bg-black px-1 py-0.5 rounded text-red-400">Season Number | Episode Title | Quality | Video URL</code></p>
                   <textarea 
                     className="w-full bg-black border border-zinc-800 rounded-lg px-4 py-3 text-sm focus:border-red-600 outline-none font-mono h-32"
@@ -469,10 +470,13 @@ export default function Admin() {
                     onChange={(e) => setBulkImportText(e.target.value)}
                   />
                   <button type="button" onClick={handleBulkImport} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg text-sm transition">
-                    Process Import
+                    Process Bulk Import
                   </button>
                 </div>
 
+                <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
+                  <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Manual Season Builder</h3>
+                </div>
                 {seasons.map((season, sIdx) => (
                   <div key={sIdx} className="space-y-4">
                     
