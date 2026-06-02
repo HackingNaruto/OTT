@@ -361,6 +361,7 @@ export default function Admin() {
     } catch(e) {
       alert("Failed to capture thumbnail. Make sure the video URL is valid and supports CORS.");
       console.log(e);
+    }
     setIsGeneratingInstantThumb(false);
     setGeneratingIndex(null);
   };
