@@ -63,6 +63,7 @@ function PlayerUI() {
   const [data, setData] = useState(null);
   const [settings, setSettings] = useState({ watermark_enabled: false, watermark_text: '' });
   const [loading, setLoading] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   
   // States
   const [activeSeasonIdx, setActiveSeasonIdx] = useState(0);
@@ -156,6 +157,12 @@ function PlayerUI() {
 
   // Handlers
   const handleEpisodeChange = (epIdx) => {
+    if (epIdx === activeEpisodeIdx) {
+      if (iframeRef.current && iframeRef.current.contentWindow) {
+        iframeRef.current.contentWindow.postMessage({ type: 'TOGGLE_PLAY' }, '*');
+      }
+      return;
+    }
     setActiveEpisodeIdx(epIdx);
     localStorage.setItem('last_watched_ep_' + data.id, activeSeasonIdx + '-' + epIdx);
     const ep = data.content_data[activeSeasonIdx].episodes[epIdx];
@@ -244,10 +251,13 @@ function PlayerUI() {
       if (e.data?.type === 'CHANGE_EPISODE' && typeof e.data.index === 'number') {
         handleEpisodeChange(e.data.index);
       }
+      if (e.data?.type === 'PLAYER_STATE' && typeof e.data.isPlaying === 'boolean') {
+        setIsPlaying(e.data.isPlaying);
+      }
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [data, activeSeasonIdx]);
+  }, [data, activeSeasonIdx, activeEpisodeIdx]);
 
   if (!id) return <div className="text-white text-center mt-20">Invalid Content ID</div>;
   if (loading) return <div className="text-zinc-500 text-center mt-20 animate-pulse">Loading Content...</div>;
@@ -391,8 +401,8 @@ function PlayerUI() {
                      <h4 className="font-bold text-sm md:text-base text-gray-900 dark:text-zinc-200 truncate group-hover:text-[#ff2e7a] transition">{ep.title}</h4>
                      <p className="text-xs text-gray-500 dark:text-zinc-500 mt-1">S{data.content_data[activeSeasonIdx].season} E{ep.episode || idx + 1}</p>
                    </div>
-                   <div className="hidden md:flex flex-shrink-0 items-center justify-center w-8 h-8 rounded-full bg-gray-100 dark:bg-zinc-800 group-hover:bg-[#ff2e7a] group-hover:text-white transition text-gray-400 dark:text-zinc-500">
-                     <i className="fas fa-play text-[10px] pl-0.5"></i>
+                   <div className="flex flex-shrink-0 items-center justify-center w-8 h-8 rounded-full bg-gray-100 dark:bg-zinc-800 group-hover:bg-[#ff2e7a] group-hover:text-white transition text-gray-400 dark:text-zinc-500">
+                     <i className={`fas ${activeEpisodeIdx === idx && isPlaying ? 'fa-pause' : 'fa-play pl-0.5'} text-[10px]`}></i>
                    </div>
                  </div>
                ))}
