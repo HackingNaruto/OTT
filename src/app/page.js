@@ -7,6 +7,9 @@ export default function Home() {
   const [movies, setMovies] = useState([]);
   const [trendingMovies, setTrendingMovies] = useState([]);
   const [siteName, setSiteName] = useState('');
+  const [rawSiteName, setRawSiteName] = useState('Premium OTT');
+  const [continueWatching, setContinueWatching] = useState([]);
+  const [newMovies, setNewMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [trendingEnabled, setTrendingEnabled] = useState(false);
   const [themeToggleEnabled, setThemeToggleEnabled] = useState(false);
@@ -15,16 +18,28 @@ export default function Home() {
   const carouselRef = useRef(null);
 
   useEffect(() => {
+    try {
+      const history = JSON.parse(localStorage.getItem('continue_watching')) || [];
+      setContinueWatching(history);
+    } catch(e) {}
+  }, []);
+
+  useEffect(() => {
     async function fetchData() {
-      const [moviesRes, settingsRes, trendingRes] = await Promise.all([
+      const [moviesRes, settingsRes, trendingRes, newMoviesRes] = await Promise.all([
         supabase.from('movies').select('*').order('created_at', { ascending: false }),
         supabase.from('site_settings').select('site_name, trending_carousel_enabled, theme_toggle_enabled, auto_fullscreen_enabled').eq('id', 1).single(),
-        supabase.from('movies').select('*').order('views', { ascending: false }).limit(10)
+        supabase.from('movies').select('*').order('views', { ascending: false }).limit(10),
+        supabase.from('movies').select('*').order('created_at', { ascending: false }).limit(12)
       ]);
       if (moviesRes.data) setMovies(moviesRes.data);
       if (trendingRes.data) setTrendingMovies(trendingRes.data);
+      if (newMoviesRes?.data) setNewMovies(newMoviesRes.data);
       if (settingsRes.data) {
-        if (settingsRes.data.site_name) setSiteName(settingsRes.data.site_name.toUpperCase());
+        if (settingsRes.data.site_name) {
+          setSiteName(settingsRes.data.site_name.toUpperCase());
+          setRawSiteName(settingsRes.data.site_name);
+        }
         setTrendingEnabled(settingsRes.data.trending_carousel_enabled || false);
         setThemeToggleEnabled(settingsRes.data.theme_toggle_enabled || false);
       }
@@ -172,6 +187,46 @@ export default function Home() {
               <div className="absolute bottom-4 right-4 md:bottom-8 md:right-8 bg-black/60 backdrop-blur-md rounded-full px-3 py-2 flex items-center gap-2 z-10">
                 {trendingList.map((_, idx) => (
                   <div key={`dot-${idx}`} className={`transition-all duration-300 rounded-full ${currentSlide === idx ? 'w-2.5 h-2.5 bg-[#bfabff]' : 'w-2.5 h-2.5 bg-white/30'}`}></div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Continue Watching */}
+          {continueWatching.length > 0 && (
+            <section>
+              <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-zinc-100">▶️ Continue Watching</h2>
+              <div className="flex overflow-x-auto snap-x scrollbar-hide gap-4 pb-4">
+                {continueWatching.map((item, idx) => (
+                  <Link href={`/watch?id=${item.id}`} key={`cw-${item.id}-${idx}`} className="w-[70vw] md:w-72 flex-none block snap-start group cursor-pointer">
+                    <div className="aspect-video relative rounded-xl overflow-hidden bg-gray-200 dark:bg-zinc-900 shadow-md">
+                      <img src={item.landscape_thumbnail_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition duration-300"></div>
+                      <div className="absolute bottom-2 left-2 bg-red-600 w-8 h-8 rounded-full flex items-center justify-center shadow-lg">
+                        <i className="fas fa-play text-white text-xs pl-0.5"></i>
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <h3 className="font-semibold text-sm truncate text-gray-900 dark:text-zinc-200">{item.title}</h3>
+                      {item.type === 'series' && item.activeSeason !== null && (
+                        <p className="text-xs text-gray-500 dark:text-zinc-400 truncate">S{item.activeSeason} • {item.activeEpisodeTitle}</p>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* New on App */}
+          {newMovies.length > 0 && (
+            <section>
+              <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-zinc-100">🔥 New on {rawSiteName}</h2>
+              <div className="flex overflow-x-auto snap-x scrollbar-hide gap-4 pb-4">
+                {newMovies.map(movie => (
+                  <div key={`new-${movie.id}`} className="w-32 md:w-48 flex-none snap-start">
+                    <MovieCard movie={movie} />
+                  </div>
                 ))}
               </div>
             </section>

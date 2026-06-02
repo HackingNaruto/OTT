@@ -138,6 +138,40 @@ function PlayerUI() {
     }
   };
 
+  // Update Continue Watching
+  useEffect(() => {
+    if (data && data.id) {
+      let title = data.short_title || data.title;
+      let activeSeason = null;
+      let activeEpisodeTitle = null;
+
+      if (data.type === 'series' && data.content_data?.[activeSeasonIdx]) {
+        activeSeason = data.content_data[activeSeasonIdx].season;
+        activeEpisodeTitle = data.content_data[activeSeasonIdx].episodes?.[activeEpisodeIdx]?.title || null;
+      }
+
+      const watchItem = {
+        id: data.id,
+        title,
+        landscape_thumbnail_url: data.landscape_thumbnail_url || data.thumbnail_url,
+        type: data.type,
+        activeSeason,
+        activeEpisodeTitle,
+        timestamp: Date.now()
+      };
+
+      try {
+        let history = JSON.parse(localStorage.getItem('continue_watching')) || [];
+        history = history.filter(item => item.id !== data.id);
+        history.unshift(watchItem);
+        if (history.length > 15) history = history.slice(0, 15);
+        localStorage.setItem('continue_watching', JSON.stringify(history));
+      } catch (e) {
+        console.error("Failed to save watch history", e);
+      }
+    }
+  }, [data, activeSeasonIdx, activeEpisodeIdx]);
+
   if (!id) return <div className="text-white text-center mt-20">Invalid Content ID</div>;
   if (loading) return <div className="text-zinc-500 text-center mt-20 animate-pulse">Loading Content...</div>;
   if (!data) return <div className="text-white text-center mt-20">Content not found.</div>;
