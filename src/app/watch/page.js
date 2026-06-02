@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
 
-function DynamicThumbnail({ videoUrl, fallbackImg, isGenerating }) {
+function DynamicThumbnail({ videoUrl, fallbackImg, backupFallbackImg, isGenerating }) {
   const [isVisible, setIsVisible] = useState(false);
   const [error, setError] = useState(false);
   const containerRef = useRef(null);
@@ -34,8 +34,19 @@ function DynamicThumbnail({ videoUrl, fallbackImg, isGenerating }) {
           className="object-cover w-full h-full pointer-events-none"
           onError={() => setError(true)}
         />
-      ) : fallbackImg ? (
-        <img src={fallbackImg} alt="Thumbnail" className="object-cover w-full h-full" />
+      ) : fallbackImg || backupFallbackImg ? (
+        <img 
+          src={fallbackImg || backupFallbackImg} 
+          onError={(e) => {
+            if (backupFallbackImg && e.target.src !== backupFallbackImg) {
+              e.target.src = backupFallbackImg;
+            } else {
+              e.target.src = '/default-placeholder.jpg';
+            }
+          }}
+          alt="Thumbnail" 
+          className="object-cover w-full h-full" 
+        />
       ) : (
         <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
             {isGenerating && <i className="fas fa-spinner fa-spin text-zinc-500 text-sm"></i>}
@@ -269,19 +280,34 @@ function PlayerUI() {
           
           canvas.toBlob(async (blob) => {
              if(blob) {
-                 const formData = new FormData();
-                 formData.append('reqtype', 'fileupload');
-                 formData.append('fileToUpload', blob, 'thumb.jpg');
+                 const catboxFormData = new FormData();
+                 catboxFormData.append('reqtype', 'fileupload');
+                 catboxFormData.append('fileToUpload', blob, 'thumb.jpg');
                  
-                 const res = await fetch('https://catbox.moe/user/api.php', {
+                 const imgbbFormData = new FormData();
+                 imgbbFormData.append('image', blob, 'thumb.jpg');
+                 // Note: Replace 'YOUR_IMGBB_API_KEY' with a real key for production
+                 const IMGBB_API_KEY = 'YOUR_IMGBB_API_KEY';
+                 
+                 const uploadToCatbox = fetch('https://catbox.moe/user/api.php', {
                      method: 'POST',
-                     body: formData
-                 });
-                 const uploadedUrl = await res.text();
+                     body: catboxFormData
+                 }).then(res => res.text()).catch(() => null);
+
+                 const uploadToImgbb = fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                     method: 'POST',
+                     body: imgbbFormData
+                 }).then(res => res.json()).then(data => data?.data?.url).catch(() => null);
+
+                 const [catboxUrl, imgbbUrl] = await Promise.all([uploadToCatbox, uploadToImgbb]);
                  
-                 if(uploadedUrl && uploadedUrl.startsWith('http')) {
-                     await supabase.from('movies').update({ landscape_thumbnail_url: uploadedUrl }).eq('id', data.id);
-                     setData(prev => ({ ...prev, landscape_thumbnail_url: uploadedUrl }));
+                 const updates = {};
+                 if (catboxUrl && catboxUrl.startsWith('http')) updates.landscape_thumbnail_url = catboxUrl;
+                 if (imgbbUrl && imgbbUrl.startsWith('http')) updates.backup_thumbnail_url = imgbbUrl;
+                 
+                 if (Object.keys(updates).length > 0) {
+                     await supabase.from('movies').update(updates).eq('id', data.id);
+                     setData(prev => ({ ...prev, ...updates }));
                  }
              }
              setIsGeneratingThumbnail(false);
@@ -436,6 +462,7 @@ function PlayerUI() {
                    <DynamicThumbnail 
                      videoUrl={ep.qualities?.[0]?.url} 
                      fallbackImg={data.landscape_thumbnail_url || (!isGeneratingThumbnail ? data.thumbnail_url : null)} 
+                     backupFallbackImg={data.backup_thumbnail_url || null}
                      isGenerating={isGeneratingThumbnail} 
                    />
                    <div className="flex-1 overflow-hidden">
