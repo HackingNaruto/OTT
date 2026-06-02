@@ -262,7 +262,11 @@ function PlayerUI() {
           video.playsInline = true;
 
           video.onloadedmetadata = () => {
-              video.currentTime = video.duration > 0 ? video.duration / 2 : 10;
+              let targetTime = 600; // 10 minutes fallback
+              if (video.duration && !isNaN(video.duration) && isFinite(video.duration) && video.duration > 0) {
+                  targetTime = video.duration / 2;
+              }
+              video.currentTime = targetTime;
           };
 
           video.onseeked = () => {
