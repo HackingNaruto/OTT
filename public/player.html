@@ -45,6 +45,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
 /* Dynamic Watermark */
 #watermark { position: absolute; color: rgba(255, 255, 255, 0.12); font-size: 14px; font-weight: bold; pointer-events: none; z-index: 2147483647 !important; user-select: none; transition: all 1s ease; display: block !important; }
 .popup { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 999999; }
+.hidden { display: none !important; }
 .cursor-hidden { cursor: none !important; }
 .popup-content { background: #1a1a1a; padding: 25px; border-radius: 15px; width: 85%; max-width: 320px; text-align: center; border: 1px solid #333; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
 .popup-content h2 { color: #ff2e7a; font-size: 18px; margin-bottom: 15px; }
@@ -92,6 +93,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
                     <button onclick="toggleSpeedPopup()" id="speedBtn" title="Playback Speed"><i class="fas fa-tachometer-alt"></i></button>
                 </div>
                 <div>
+                    <button onclick="openEpisodeDrawer()" id="episodesBtn" title="More Episodes" style="display: none;"><i class="fas fa-list-ul"></i></button>
                     <button onclick="toggleQualityPopup()" id="qualityBtn" title="Video Quality" style="display: none;"><i class="fas fa-cog"></i></button>
                     <button onclick="togglePiP()" title="Picture in Picture"><i class="fas fa-clone"></i></button>
                     <button onclick="cycleAspect()"><i class="fas fa-crop-alt"></i></button>
@@ -138,8 +140,8 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
                 <button onclick="resumePlayback(false)" style="background: rgba(255,255,255,0.2); color: white; padding: 15px; font-size: 16px; border-radius: 50px; display: flex; justify-content: center; align-items: center; gap: 10px;"><i class="fas fa-redo"></i> Start Over</button>
             </div>
         </div>
-        <div id="episodeDrawer" class="popup" style="background: transparent; align-items: flex-end;" onclick="closeEpisodeDrawer()">
-            <div id="episodeDrawerContent" style="background: rgba(10,10,10,0.95); backdrop-filter: blur(10px); width: 100%; border-radius: 20px 20px 0 0; padding: 20px; box-shadow: 0 -10px 40px rgba(0,0,0,0.8); transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);" onclick="event.stopPropagation()">
+        <div id="episodeDrawer" class="hidden" style="position: fixed; inset: 0; z-index: 9999999; background: transparent; display: flex; align-items: flex-end; pointer-events: none;" onclick="closeEpisodeDrawer()">
+            <div id="episodeDrawerContent" style="background: rgba(10,10,10,0.95); backdrop-filter: blur(10px); width: 100%; border-radius: 20px 20px 0 0; padding: 20px; box-shadow: 0 -10px 40px rgba(0,0,0,0.8); transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: auto;" onclick="event.stopPropagation()">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <h2 style="color: white; font-size: 18px; margin: 0; font-weight: 600;">More Episodes</h2>
                     <button onclick="closeEpisodeDrawer()" style="background: none; border: none; color: white; font-size: 28px; cursor: pointer;">&times;</button>
@@ -161,6 +163,10 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
     window.addEventListener('message', (e) => {
         if (e.data && e.data.type === 'INIT_EPISODES') {
             window.episodesData = e.data.episodes;
+            const epBtn = document.getElementById('episodesBtn');
+            if (epBtn && window.episodesData && window.episodesData.length > 0) {
+                epBtn.style.display = 'inline-block';
+            }
             buildEpisodeDrawer();
         }
         if (e.data?.type === 'TOGGLE_PLAY') {
@@ -211,14 +217,15 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         if(!window.episodesData || window.episodesData.length === 0) return;
         const drawer = document.getElementById('episodeDrawer');
         const content = document.getElementById('episodeDrawerContent');
-        drawer.style.display = 'flex';
+        drawer.classList.remove('hidden');
         setTimeout(() => { content.style.transform = 'translateY(0)'; }, 10);
     }
     
     function closeEpisodeDrawer() {
+        const drawer = document.getElementById('episodeDrawer');
         const content = document.getElementById('episodeDrawerContent');
         content.style.transform = 'translateY(100%)';
-        setTimeout(() => { document.getElementById('episodeDrawer').style.display = 'none'; }, 300);
+        setTimeout(() => { drawer.classList.add('hidden'); }, 300);
     }
 
     // -----------------------------------------------------
@@ -718,8 +725,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         isDragging = true;
         dragType = null;
         
-        const isControlsVisible = customControls.style.opacity === '1';
-        if (touchStartY > window.innerHeight * 0.75 && isControlsVisible && window.episodesData && window.episodesData.length > 0) {
+        if (touchStartY > window.innerHeight * 0.70 && window.episodesData && window.episodesData.length > 0) {
             dragType = 'drawer_pending';
         }
     });
@@ -732,7 +738,7 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         let dy = y - touchStartY;
         
         if (dragType === 'drawer_pending') {
-            if (dy < -20) {
+            if (dy < -50) {
                 e.preventDefault();
                 openEpisodeDrawer();
                 isDragging = false;
