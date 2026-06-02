@@ -25,6 +25,7 @@ export default function Admin() {
   const [shortTitle, setShortTitle] = useState('');
   const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [landscapeThumbnailUrl, setLandscapeThumbnailUrl] = useState('');
+  const [backupThumbnailUrl, setBackupThumbnailUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
 
   const [movieQualities, setMovieQualities] = useState([{ quality: '1080p', url: '' }]);
@@ -131,6 +132,7 @@ export default function Admin() {
     setShortTitle(item.short_title || '');
     setThumbnailUrl(item.thumbnail_url || '');
     setLandscapeThumbnailUrl(item.landscape_thumbnail_url || '');
+    setBackupThumbnailUrl(item.backup_thumbnail_url || '');
     setVideoUrl(item.video_url || '');
     setType(item.type || 'movie');
 
@@ -164,6 +166,7 @@ export default function Admin() {
     setShortTitle('');
     setThumbnailUrl('');
     setLandscapeThumbnailUrl('');
+    setBackupThumbnailUrl('');
     setVideoUrl('');
     setType('movie');
     setMovieQualities([{ quality: '1080p', url: '' }]);
@@ -185,10 +188,11 @@ export default function Admin() {
 
     const payload = {
       title,
-      short_title: shortTitle || '',
-      thumbnail_url: thumbnailUrl || '',
-      landscape_thumbnail_url: landscapeThumbnailUrl || '',
-      video_url: videoUrl || '',
+      short_title: shortTitle,
+      thumbnail_url: thumbnailUrl || null,
+      landscape_thumbnail_url: landscapeThumbnailUrl || null,
+      backup_thumbnail_url: backupThumbnailUrl || null,
+      video_url: videoUrl || null,
       type,
       content_data: contentDataPayload
     };
@@ -244,6 +248,94 @@ export default function Admin() {
     setLoading(false);
     if (error) alert('Error saving settings: ' + error.message);
     else alert('Player Settings saved!');
+  };
+
+  const [isGeneratingInstantThumb, setIsGeneratingInstantThumb] = useState(false);
+
+  const generateInstantThumbnail = async (targetUrl) => {
+    if (!targetUrl) return alert("Please enter a Video URL first.");
+    setIsGeneratingInstantThumb(true);
+    try {
+      const video = document.createElement('video');
+      video.crossOrigin = 'anonymous';
+      video.muted = true;
+      video.playsInline = true;
+
+      await new Promise((resolve, reject) => {
+         let timeoutFired = false;
+         const timeoutId = setTimeout(() => {
+             timeoutFired = true;
+             captureAndUpload();
+         }, 1500);
+
+         video.onloadedmetadata = () => {
+             let targetTime = video.duration / 2;
+             if (!video.duration || isNaN(video.duration) || !isFinite(video.duration) || video.duration <= 0) {
+                 targetTime = 30; // Instantly skip 0:00
+             }
+             video.currentTime = targetTime;
+         };
+
+         const captureAndUpload = () => {
+             video.pause();
+             const canvas = document.createElement('canvas');
+             canvas.width = 640;
+             canvas.height = 360;
+             const ctx = canvas.getContext('2d');
+             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+             canvas.toBlob(async (blob) => {
+                 if (blob) {
+                     const catboxFormData = new FormData();
+                     catboxFormData.append('reqtype', 'fileupload');
+                     catboxFormData.append('fileToUpload', blob, 'thumb.jpg');
+
+                     const imgbbFormData = new FormData();
+                     imgbbFormData.append('image', blob, 'thumb.jpg');
+                     const IMGBB_API_KEY = 'YOUR_IMGBB_API_KEY';
+
+                     const uploadToCatbox = fetch('https://catbox.moe/user/api.php', {
+                         method: 'POST',
+                         body: catboxFormData
+                     }).then(res => res.text()).catch(() => null);
+
+                     const uploadToImgbb = fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                         method: 'POST',
+                         body: imgbbFormData
+                     }).then(res => res.json()).then(d => d?.data?.url).catch(() => null);
+
+                     const [catboxUrl, imgbbUrl] = await Promise.all([uploadToCatbox, uploadToImgbb]);
+
+                     if (catboxUrl && catboxUrl.startsWith('http')) setLandscapeThumbnailUrl(catboxUrl);
+                     if (imgbbUrl && imgbbUrl.startsWith('http')) setBackupThumbnailUrl(imgbbUrl);
+
+                     alert("Thumbnail Captured Instantly!");
+                 }
+                 resolve();
+             }, 'image/jpeg', 0.4);
+         };
+
+         video.onseeked = () => {
+             if (!timeoutFired) {
+                 clearTimeout(timeoutId);
+                 captureAndUpload();
+             }
+         };
+
+         video.onerror = (e) => {
+             if (!timeoutFired) {
+                 clearTimeout(timeoutId);
+                 reject(e);
+             }
+         };
+
+         video.src = targetUrl;
+      });
+    } catch(e) {
+      alert("Failed to capture thumbnail. Make sure the video URL is valid and supports CORS.");
+      console.log(e);
+    }
+    setIsGeneratingInstantThumb(false);
   };
 
   // --- Movie Quality Handlers ---
@@ -414,7 +506,14 @@ export default function Admin() {
                  <input type="text" placeholder="Short Title (Optional)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={shortTitle} onChange={e => setShortTitle(e.target.value)} />
                  <input type="text" placeholder="Portrait Thumbnail URL (Optional)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={thumbnailUrl} onChange={e => setThumbnailUrl(e.target.value)} />
                  <input type="text" placeholder="Landscape Thumbnail URL (Optional) (For Trending 16:9)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={landscapeThumbnailUrl} onChange={e => setLandscapeThumbnailUrl(e.target.value)} />
-                 <input type="text" placeholder="Fallback Video URL (Optional)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
+                 <input type="text" placeholder="Backup Thumbnail URL (Optional) (For ImgBB Failover)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={backupThumbnailUrl} onChange={e => setBackupThumbnailUrl(e.target.value)} />
+                 
+                 <div className="flex gap-2">
+                   <input type="text" placeholder="Fallback Video URL (Optional)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
+                   <button type="button" onClick={() => generateInstantThumbnail(videoUrl)} disabled={isGeneratingInstantThumb} className="whitespace-nowrap px-4 py-3 bg-red-900/30 text-red-500 font-bold border border-red-900/50 rounded-xl hover:bg-red-600 hover:text-white transition disabled:opacity-50 text-sm">
+                     {isGeneratingInstantThumb ? 'Capturing...' : '📸 Instant Auto-Thumb'}
+                   </button>
+                 </div>
               </div>
             </div>
 
@@ -452,6 +551,9 @@ export default function Admin() {
                     <input type="text" placeholder="Quality (e.g. 1080p)" className="w-full sm:w-1/4 bg-zinc-900/50 border border-zinc-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-600" value={q.quality} onChange={e => updateMovieQuality(idx, 'quality', e.target.value)} required />
                     <div className="flex w-full sm:flex-1 gap-2">
                       <input type="text" placeholder="Video URL" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-600" value={q.url} onChange={e => updateMovieQuality(idx, 'url', e.target.value)} required />
+                      <button type="button" onClick={() => generateInstantThumbnail(q.url)} disabled={isGeneratingInstantThumb} className="whitespace-nowrap px-3 bg-red-900/30 text-red-500 hover:text-white rounded-lg text-xs font-bold border border-red-900/50 disabled:opacity-50">
+                        {isGeneratingInstantThumb ? '...' : '📸'}
+                      </button>
                       {movieQualities.length > 1 && <button type="button" onClick={() => removeMovieQuality(idx)} className="bg-red-900/50 text-red-500 hover:text-white px-3 rounded-lg"><i className="fas fa-trash"></i></button>}
                     </div>
                   </div>
@@ -514,6 +616,9 @@ export default function Admin() {
                               <div key={qIdx} className="flex gap-2">
                                  <input type="text" placeholder="1080p" className="w-20 bg-black border border-zinc-800 rounded px-2 py-1 text-xs outline-none focus:border-red-600" value={q.quality} onChange={e => updateEpisodeQuality(sIdx, eIdx, qIdx, 'quality', e.target.value)} required />
                                  <input type="text" placeholder="Source URL" className="flex-1 bg-black border border-zinc-800 rounded px-2 py-1 text-xs outline-none focus:border-red-600" value={q.url} onChange={e => updateEpisodeQuality(sIdx, eIdx, qIdx, 'url', e.target.value)} required />
+                                 <button type="button" onClick={() => generateInstantThumbnail(q.url)} disabled={isGeneratingInstantThumb} className="whitespace-nowrap px-2 bg-red-900/30 text-red-500 hover:text-white rounded text-[10px] font-bold border border-red-900/50 disabled:opacity-50">
+                                   {isGeneratingInstantThumb ? '...' : '📸'}
+                                 </button>
                                  {ep.qualities.length > 1 && <button type="button" onClick={() => removeEpisodeQuality(sIdx, eIdx, qIdx)} className="text-red-900 hover:text-red-500 px-2 text-xs"><i className="fas fa-times"></i></button>}
                               </div>
                             ))}

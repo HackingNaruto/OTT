@@ -49,7 +49,7 @@ function DynamicThumbnail({ videoUrl, fallbackImg, backupFallbackImg, isGenerati
         />
       ) : (
         <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-            {isGenerating && <i className="fas fa-spinner fa-spin text-zinc-500 text-sm"></i>}
+            <i className="fas fa-image text-zinc-500 text-sm"></i>
         </div>
       )}
     </div>
@@ -63,7 +63,6 @@ function PlayerUI() {
   const [data, setData] = useState(null);
   const [settings, setSettings] = useState({ watermark_enabled: false, watermark_text: '' });
   const [loading, setLoading] = useState(true);
-  const [isGeneratingThumbnail, setIsGeneratingThumbnail] = useState(false);
   
   // States
   const [activeSeasonIdx, setActiveSeasonIdx] = useState(0);
@@ -250,88 +249,6 @@ function PlayerUI() {
     return () => window.removeEventListener('message', handleMessage);
   }, [data, activeSeasonIdx]);
 
-  // Automated Thumbnail Generator
-  useEffect(() => {
-    async function generateAndUploadThumbnail() {
-      if (data && !data.landscape_thumbnail_url && currentUrl && !isGeneratingThumbnail) {
-        setIsGeneratingThumbnail(true);
-        try {
-          const video = document.createElement('video');
-          video.crossOrigin = 'anonymous';
-          video.muted = true;
-          video.playsInline = true;
-
-          video.onloadedmetadata = () => {
-              let targetTime = 600; // 10 minutes fallback
-              if (video.duration && !isNaN(video.duration) && isFinite(video.duration) && video.duration > 0) {
-                  targetTime = video.duration / 2;
-              }
-              video.currentTime = targetTime;
-          };
-
-          video.onseeked = () => {
-              const canvas = document.createElement('canvas');
-              canvas.width = 640;
-              canvas.height = 360;
-              const ctx = canvas.getContext('2d');
-              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-              
-              canvas.toBlob(async (blob) => {
-                 if(blob) {
-                     const catboxFormData = new FormData();
-                     catboxFormData.append('reqtype', 'fileupload');
-                     catboxFormData.append('fileToUpload', blob, 'thumb.jpg');
-                     
-                     const imgbbFormData = new FormData();
-                     imgbbFormData.append('image', blob, 'thumb.jpg');
-                     // Note: Replace 'YOUR_IMGBB_API_KEY' with a real key for production
-                     const IMGBB_API_KEY = 'YOUR_IMGBB_API_KEY';
-                     
-                     const uploadToCatbox = fetch('https://catbox.moe/user/api.php', {
-                         method: 'POST',
-                         body: catboxFormData
-                     }).then(res => res.text()).catch(() => null);
-
-                     const uploadToImgbb = fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-                         method: 'POST',
-                         body: imgbbFormData
-                     }).then(res => res.json()).then(d => d?.data?.url).catch(() => null);
-
-                     const [catboxUrl, imgbbUrl] = await Promise.all([uploadToCatbox, uploadToImgbb]);
-                     
-                     const updates = {};
-                     if (catboxUrl && catboxUrl.startsWith('http')) updates.landscape_thumbnail_url = catboxUrl;
-                     if (imgbbUrl && imgbbUrl.startsWith('http')) updates.backup_thumbnail_url = imgbbUrl;
-                     
-                     if (Object.keys(updates).length > 0) {
-                         await supabase.from('movies').update(updates).eq('id', data.id);
-                         setData(prev => ({ ...prev, ...updates }));
-                     }
-                 }
-                 setIsGeneratingThumbnail(false);
-              }, 'image/jpeg', 0.4);
-          };
-
-          video.onerror = (e) => {
-              console.log("Failed to load video for thumbnail", e);
-              setIsGeneratingThumbnail(false);
-          };
-
-          video.src = currentUrl;
-
-        } catch(e) {
-          console.log("Failed to generate thumbnail", e);
-          setIsGeneratingThumbnail(false);
-        }
-      }
-    }
-    
-    const timeout = setTimeout(() => {
-        generateAndUploadThumbnail();
-    }, 2000);
-    return () => clearTimeout(timeout);
-  }, [data?.id, data?.landscape_thumbnail_url, currentUrl]);
-
   if (!id) return <div className="text-white text-center mt-20">Invalid Content ID</div>;
   if (loading) return <div className="text-zinc-500 text-center mt-20 animate-pulse">Loading Content...</div>;
   if (!data) return <div className="text-white text-center mt-20">Content not found.</div>;
@@ -467,9 +384,8 @@ function PlayerUI() {
                  >
                    <DynamicThumbnail 
                      videoUrl={ep.qualities?.[0]?.url} 
-                     fallbackImg={data.landscape_thumbnail_url || (!isGeneratingThumbnail ? data.thumbnail_url : null)} 
+                     fallbackImg={data.landscape_thumbnail_url || data.thumbnail_url || null} 
                      backupFallbackImg={data.backup_thumbnail_url || null}
-                     isGenerating={isGeneratingThumbnail} 
                    />
                    <div className="flex-1 overflow-hidden">
                      <h4 className="font-bold text-sm md:text-base text-gray-900 dark:text-zinc-200 truncate group-hover:text-[#ff2e7a] transition">{ep.title}</h4>
