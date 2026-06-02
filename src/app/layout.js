@@ -8,8 +8,12 @@ export async function generateMetadata() {
   return {
     title: `${siteName} - Premium Streaming`,
     description: 'Premium Secure Streaming App',
+    manifest: '/manifest.json',
+    themeColor: '#e50914'
   };
 }
+
+import PwaRegister from '../components/PwaRegister';
 
 export default function RootLayout({ children }) {
   return (
@@ -31,6 +35,7 @@ export default function RootLayout({ children }) {
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
       </head>
       <body className="bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-white min-h-screen transition-colors">
+        <PwaRegister />
         {children}
       </body>
     </html>

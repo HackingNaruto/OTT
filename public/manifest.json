@@ -1,0 +1,22 @@
+{
+  "name": "StreamX OTT",
+  "short_name": "StreamX",
+  "description": "Stream your favorite movies and series seamlessly.",
+  "theme_color": "#e50914",
+  "background_color": "#141414",
+  "display": "standalone",
+  "orientation": "portrait",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
