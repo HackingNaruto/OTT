@@ -68,13 +68,26 @@ function PlayerUI() {
 
         // Initialize logic
         if (movie.type === 'series' && movie.content_data?.length > 0) {
-           const firstSeason = movie.content_data[0];
-           if (firstSeason.episodes?.length > 0) {
-             const firstEp = firstSeason.episodes[0];
-             if (firstEp.qualities?.length > 0) {
-               setActiveQuality(firstEp.qualities[0].quality);
-               setCurrentUrl(firstEp.qualities[0].url);
-             }
+           let sIdx = 0;
+           let eIdx = 0;
+           
+           const savedState = localStorage.getItem('last_watched_ep_' + movie.id);
+           if (savedState) {
+               const parts = savedState.split('-');
+               sIdx = parseInt(parts[0]) || 0;
+               eIdx = parseInt(parts[1]) || 0;
+           }
+
+           if (!movie.content_data[sIdx]) sIdx = 0;
+           if (!movie.content_data[sIdx]?.episodes?.[eIdx]) eIdx = 0;
+
+           setActiveSeasonIdx(sIdx);
+           setActiveEpisodeIdx(eIdx);
+
+           const ep = movie.content_data[sIdx]?.episodes?.[eIdx];
+           if (ep && ep.qualities?.length > 0) {
+             setActiveQuality(ep.qualities[0].quality);
+             setCurrentUrl(ep.qualities[0].url);
            }
         } else if (movie.type === 'movie' && movie.content_data?.length > 0) {
            setActiveQuality(movie.content_data[0].quality);
@@ -92,6 +105,7 @@ function PlayerUI() {
   // Handlers
   const handleEpisodeChange = (epIdx) => {
     setActiveEpisodeIdx(epIdx);
+    localStorage.setItem('last_watched_ep_' + data.id, activeSeasonIdx + '-' + epIdx);
     const ep = data.content_data[activeSeasonIdx].episodes[epIdx];
     if (ep.qualities?.length > 0) {
       // try to keep same quality, or fallback to first
@@ -235,6 +249,7 @@ function PlayerUI() {
                      onClick={() => {
                        setActiveSeasonIdx(idx);
                        setActiveEpisodeIdx(0);
+                       localStorage.setItem('last_watched_ep_' + data.id, idx + '-0');
                        const firstEp = data.content_data[idx]?.episodes?.[0];
                        if(firstEp?.qualities?.length > 0) {
                            setActiveQuality(firstEp.qualities[0].quality);

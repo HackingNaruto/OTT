@@ -120,10 +120,13 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
             <div class="popup-content" style="max-width: 300px; padding: 20px;" onclick="event.stopPropagation()">
                 <h2>Playback Speed</h2>
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
-                    <input type="range" id="speedSlider" min="0.25" max="3" step="0.25" value="1" style="flex: 1; margin-right: 15px; accent-color: #ff2e7a; cursor: pointer;">
-                    <input type="number" id="speedInput" min="0.25" max="5" step="0.1" value="1" style="width: 60px; background: #2a2a2a; border: 1px solid #444; color: white; padding: 5px; border-radius: 5px; text-align: center; outline: none;">
+                    <input type="range" id="speedSlider" min="0.5" max="3" step="0.5" value="1" style="flex: 1; margin-right: 15px; accent-color: #ff2e7a; cursor: pointer;">
+                    <input type="number" id="speedInput" min="0.5" max="5" step="0.5" value="1" style="width: 60px; background: #2a2a2a; border: 1px solid #444; color: white; padding: 5px; border-radius: 5px; text-align: center; outline: none;">
                 </div>
-                <button style="background: #ff2e7a; margin-top: 5px;" onclick="toggleSpeedPopup()">Close</button>
+                <div style="display: flex; gap: 10px; margin-top: 5px;">
+                    <button style="background: #3b82f6; flex: 1;" onclick="applySpeedAndClose()">Set</button>
+                    <button style="background: #ff2e7a; flex: 1;" onclick="toggleSpeedPopup()">Close</button>
+                </div>
             </div>
         </div>
 
@@ -477,17 +480,22 @@ video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-
         }
     }
 
-    function setSpeed(val) {
-        let next = parseFloat(val);
-        if (isNaN(next) || next <= 0) return;
-        video.playbackRate = next;
-        speedSlider.value = next;
-        speedInput.value = next;
-        showOverlay('<i class="fas fa-tachometer-alt"></i> ' + next + 'x');
+    function syncSpeedInputs(val) {
+        speedSlider.value = val;
+        speedInput.value = val;
     }
 
-    speedSlider.addEventListener('input', (e) => setSpeed(e.target.value));
-    speedInput.addEventListener('change', (e) => setSpeed(e.target.value));
+    speedSlider.addEventListener('input', (e) => syncSpeedInputs(e.target.value));
+    speedInput.addEventListener('change', (e) => syncSpeedInputs(e.target.value));
+
+    function applySpeedAndClose() {
+        let next = parseFloat(speedSlider.value);
+        if (!isNaN(next) && next > 0) {
+            video.playbackRate = next;
+            showOverlay('<i class="fas fa-tachometer-alt"></i> ' + next + 'x');
+        }
+        toggleSpeedPopup();
+    }
 
     function cycleAspect() {
         const modes = ['contain', 'cover', 'fill'];
