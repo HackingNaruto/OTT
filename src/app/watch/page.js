@@ -318,7 +318,12 @@ function PlayerUI() {
                   season: data.content_data[activeSeasonIdx].season,
                   episode: ep.episode || idx + 1
                 }));
-                iframeRef.current.contentWindow.postMessage({ type: 'INIT_EPISODES', episodes, currentIndex: activeEpisodeIdx }, '*');
+                iframeRef.current.contentWindow.postMessage({ 
+                  type: 'INIT_EPISODES', 
+                  episodes, 
+                  currentIndex: activeEpisodeIdx,
+                  showThumbnails: settings?.show_episode_thumbnails !== false 
+                }, '*');
               }
             }}
           />
