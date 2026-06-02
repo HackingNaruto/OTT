@@ -13,6 +13,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [trendingEnabled, setTrendingEnabled] = useState(false);
   const [themeToggleEnabled, setThemeToggleEnabled] = useState(false);
+  const [showContinueWatching, setShowContinueWatching] = useState(true);
+  const [showNewArrivals, setShowNewArrivals] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const carouselRef = useRef(null);
@@ -28,7 +30,7 @@ export default function Home() {
     async function fetchData() {
       const [moviesRes, settingsRes, trendingRes, newMoviesRes] = await Promise.all([
         supabase.from('movies').select('*').order('created_at', { ascending: false }),
-        supabase.from('site_settings').select('site_name, trending_carousel_enabled, theme_toggle_enabled, auto_fullscreen_enabled').eq('id', 1).single(),
+        supabase.from('site_settings').select('site_name, trending_carousel_enabled, theme_toggle_enabled, auto_fullscreen_enabled, show_continue_watching, show_new_arrivals').eq('id', 1).single(),
         supabase.from('movies').select('*').order('views', { ascending: false }).limit(10),
         supabase.from('movies').select('*').order('created_at', { ascending: false }).limit(12)
       ]);
@@ -42,6 +44,8 @@ export default function Home() {
         }
         setTrendingEnabled(settingsRes.data.trending_carousel_enabled || false);
         setThemeToggleEnabled(settingsRes.data.theme_toggle_enabled || false);
+        setShowContinueWatching(settingsRes.data.show_continue_watching !== false);
+        setShowNewArrivals(settingsRes.data.show_new_arrivals !== false);
       }
       setLoading(false);
     }
@@ -193,7 +197,7 @@ export default function Home() {
           )}
 
           {/* Continue Watching */}
-          {continueWatching.length > 0 && (
+          {showContinueWatching !== false && continueWatching.length > 0 && (
             <section>
               <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-zinc-100">▶️ Continue Watching</h2>
               <div className="flex overflow-x-auto snap-x scrollbar-hide gap-4 pb-4">
@@ -219,7 +223,7 @@ export default function Home() {
           )}
 
           {/* New on App */}
-          {newMovies.length > 0 && (
+          {showNewArrivals !== false && newMovies.length > 0 && (
             <section>
               <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-zinc-100">🔥 New on {rawSiteName}</h2>
               <div className="flex overflow-x-auto snap-x scrollbar-hide gap-4 pb-4">

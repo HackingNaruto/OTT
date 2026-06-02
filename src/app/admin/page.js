@@ -46,6 +46,8 @@ export default function Admin() {
   const [watermarkSize, setWatermarkSize] = useState('14px');
   const [watermarkPosition, setWatermarkPosition] = useState('bottom-right');
   const [autoFullscreenEnabled, setAutoFullscreenEnabled] = useState(false);
+  const [showContinueWatching, setShowContinueWatching] = useState(true);
+  const [showNewArrivals, setShowNewArrivals] = useState(true);
 
   // Fetch Settings on Mount
   useEffect(() => {
@@ -61,6 +63,8 @@ export default function Admin() {
         setWatermarkSize(data.watermark_size || '14px');
         setWatermarkPosition(data.watermark_position || 'bottom-right');
         setAutoFullscreenEnabled(data.auto_fullscreen_enabled || false);
+        setShowContinueWatching(data.show_continue_watching !== false);
+        setShowNewArrivals(data.show_new_arrivals !== false);
       }
     }
     fetchSettings();
@@ -233,7 +237,9 @@ export default function Admin() {
       watermark_movement: watermarkMovement,
       watermark_size: watermarkSize,
       watermark_position: watermarkPosition,
-      auto_fullscreen_enabled: autoFullscreenEnabled
+      auto_fullscreen_enabled: autoFullscreenEnabled,
+      show_continue_watching: showContinueWatching,
+      show_new_arrivals: showNewArrivals
     });
     setLoading(false);
     if (error) alert('Error saving settings: ' + error.message);
@@ -581,6 +587,14 @@ export default function Admin() {
               <label className="flex items-center gap-3 cursor-pointer mt-4">
                 <input type="checkbox" className="w-5 h-5 accent-red-600" checked={autoFullscreenEnabled} onChange={e => setAutoFullscreenEnabled(e.target.checked)} />
                 <span className="font-bold text-gray-700 dark:text-zinc-300">Enable Auto-Fullscreen App Mode on Launch</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer mt-4">
+                <input type="checkbox" className="w-5 h-5 accent-red-600" checked={showContinueWatching} onChange={e => setShowContinueWatching(e.target.checked)} />
+                <span className="font-bold text-gray-700 dark:text-zinc-300">Show 'Continue Watching' Section on Homepage</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer mt-4">
+                <input type="checkbox" className="w-5 h-5 accent-red-600" checked={showNewArrivals} onChange={e => setShowNewArrivals(e.target.checked)} />
+                <span className="font-bold text-gray-700 dark:text-zinc-300">Show 'New Arrivals' Section on Homepage</span>
               </label>
             </div>
 
