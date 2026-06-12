@@ -588,7 +588,6 @@ export default function Admin() {
         <div className="flex gap-2 mb-6 border-b border-zinc-800 pb-2 overflow-x-auto whitespace-nowrap hide-scrollbar">
           <button onClick={() => setActiveTab('cms')} className={`px-4 py-2 text-sm md:text-base font-bold rounded-lg transition ${activeTab === 'cms' ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>Add/Edit Content</button>
           <button onClick={() => setActiveTab('manage')} className={`px-4 py-2 text-sm md:text-base font-bold rounded-lg transition ${activeTab === 'manage' ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>Manage List</button>
-          <button onClick={() => setActiveTab('bulk-thumb')} className={`px-4 py-2 text-sm md:text-base font-bold rounded-lg transition ${activeTab === 'bulk-thumb' ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>Bulk Thumbs</button>
           <button onClick={() => setActiveTab('settings')} className={`px-4 py-2 text-sm md:text-base font-bold rounded-lg transition ${activeTab === 'settings' ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>Player Settings</button>
         </div>
         
@@ -748,6 +747,37 @@ export default function Admin() {
                 </button>
               </div>
             )}
+            {/* --- METHOD 3: BULK THUMBNAIL IMPORT --- */}
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 space-y-3">
+              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Method 3: Bulk Thumbnail Import</h3>
+              <p className="text-xs text-zinc-500">Format: <code className="bg-black px-1 py-0.5 rounded text-red-400">Content_ID | Thumbnail_URL</code></p>
+              <p className="text-xs text-zinc-600 italic">Only updates <code className="text-zinc-400">thumbnail_url</code>. Video URLs and episode data are never touched.</p>
+              <textarea
+                rows={8}
+                placeholder={`e.g.\n1b4ff806-58a6-4f38-8f5e-7ca183219ab3 | /kqjL17yufvn9OVLyXYpvtyrFfak.jpg\n2a5bc912-12ab-45cd-90ef-abc123456789 | https://image.tmdb.org/t/p/w500/poster.jpg`}
+                className="w-full bg-black border border-zinc-800 rounded-lg px-4 py-3 text-sm focus:border-red-600 outline-none font-mono resize-y min-h-[120px]"
+                value={bulkThumbText}
+                onChange={e => setBulkThumbText(e.target.value)}
+              />
+              <div className="flex gap-3 items-center">
+                <button
+                  type="button"
+                  onClick={handleBulkThumbImport}
+                  disabled={isBulkUpdating || !bulkThumbText.trim()}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg text-sm transition disabled:opacity-50"
+                >
+                  {isBulkUpdating ? 'Updating...' : 'Process Bulk Thumbnails'}
+                </button>
+                {bulkThumbLog.length > 0 && <span className="text-xs text-zinc-500">{bulkThumbLog.length} entries processed</span>}
+              </div>
+              {bulkThumbLog.length > 0 && (
+                <div className="bg-black/50 border border-zinc-800 rounded-lg p-3 max-h-40 overflow-y-auto mt-2">
+                  {bulkThumbLog.map((line, i) => (
+                    <p key={i} className="text-xs text-zinc-300 font-mono py-0.5">{line}</p>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <button type="submit" disabled={loading} className="w-full bg-red-600 hover:bg-red-700 font-bold py-4 rounded-xl transition text-base disabled:opacity-50 mt-8 shadow-lg shadow-red-900/50">
               {loading ? 'Processing...' : (editId ? 'Update Content' : 'Push to App')}
@@ -782,40 +812,6 @@ export default function Admin() {
           </div>
         )}
 
-        {/* --- BULK THUMBNAIL IMPORTER TAB --- */}
-        {activeTab === 'bulk-thumb' && (
-          <div className="space-y-6">
-            <div className="bg-transparent space-y-4">
-              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Bulk Thumbnail Importer</h3>
-              <p className="text-xs text-zinc-500">Paste one entry per line. Format: <code className="bg-black px-1 py-0.5 rounded text-red-400">Episode_ID | Thumbnail_URL</code></p>
-              <p className="text-xs text-zinc-600 italic">This only updates the <code className="text-zinc-400">thumbnail_url</code> column. No other fields are touched.</p>
-              <textarea
-                rows={12}
-                placeholder={`e.g.\n1b4ff806-58a6-4f38-8f5e-7ca183219ab3 | /kqjL17yufvn9OVLyXYpvtyrFfak.jpg\n2a5bc912-12ab-45cd-90ef-abc123456789 | https://image.tmdb.org/t/p/w500/poster.jpg`}
-                className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none font-mono resize-y min-h-[200px]"
-                value={bulkThumbText}
-                onChange={e => setBulkThumbText(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={handleBulkThumbImport}
-                disabled={isBulkUpdating || !bulkThumbText.trim()}
-                className="w-full bg-red-600 hover:bg-red-700 font-bold py-4 rounded-xl transition text-base disabled:opacity-50 shadow-lg shadow-red-900/50"
-              >
-                {isBulkUpdating ? 'Updating Database...' : `Import ${bulkThumbText.trim().split('\n').filter(l=>l.trim()).length} Thumbnails`}
-              </button>
-            </div>
-
-            {bulkThumbLog.length > 0 && (
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 max-h-64 overflow-y-auto">
-                <h4 className="text-xs font-bold text-zinc-400 uppercase mb-2">Import Log</h4>
-                {bulkThumbLog.map((line, i) => (
-                  <p key={i} className="text-xs text-zinc-300 font-mono py-0.5">{line}</p>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* --- SETTINGS TAB --- */}
         {activeTab === 'settings' && (
