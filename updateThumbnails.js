@@ -1,9 +1,10 @@
+require('dotenv').config({ path: '.env.local' });
 const { createClient } = require('@supabase/supabase-js');
 
-// Unga keys inga podunga
-const SUPABASE_URL = process.env.SUPABASE_URL || 'UNGA_SUPABASE_URL';
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || 'UNGA_SUPABASE_SERVICE_KEY'; // Service role key
-const TMDB_API_KEY = process.env.TMDB_API_KEY || 'UNGA_TMDB_API_KEY';
+// Automatically pulling from Vercel / local .env.local file
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_KEY; 
+const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY || process.env.TMDB_API_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
