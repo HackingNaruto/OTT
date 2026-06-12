@@ -4,54 +4,22 @@ import { Suspense, useEffect, useState, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
 
-function DynamicThumbnail({ videoUrl, fallbackImg, backupFallbackImg, isGenerating }) {
-  const [isVisible, setIsVisible] = useState(false);
-  const [error, setError] = useState(false);
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          setIsVisible(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: '50px' }
-    );
-    if (containerRef.current) observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, []);
+function SafeEpisodeThumbnail({ src, fallbackImg }) {
+  const [imgSrc, setImgSrc] = useState(() => {
+    if (src) return src;
+    if (fallbackImg) return fallbackImg;
+    return '/images/placeholder-landscape.png';
+  });
 
   return (
-    <div ref={containerRef} className={`w-28 h-16 md:w-36 md:h-20 bg-zinc-900 rounded-lg overflow-hidden flex-shrink-0 relative border border-gray-200 dark:border-zinc-800 ${isGenerating && !fallbackImg ? 'animate-pulse' : ''}`}>
-      {isVisible && !error && videoUrl ? (
-        <video 
-          src={`${videoUrl}#t=10`} 
-          preload="metadata" 
-          muted 
-          playsInline 
-          className="object-cover w-full h-full pointer-events-none"
-          onError={() => setError(true)}
-        />
-      ) : fallbackImg || backupFallbackImg ? (
-        <img 
-          src={fallbackImg || backupFallbackImg} 
-          onError={(e) => {
-            if (backupFallbackImg && e.target.src !== backupFallbackImg) {
-              e.target.src = backupFallbackImg;
-            } else {
-              e.target.src = '/default-placeholder.jpg';
-            }
-          }}
-          alt="Thumbnail" 
-          className="object-cover w-full h-full" 
-        />
-      ) : (
-        <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-            <i className="fas fa-image text-zinc-500 text-sm"></i>
-        </div>
-      )}
+    <div className="w-28 h-16 md:w-36 md:h-20 bg-zinc-900 rounded-lg overflow-hidden flex-shrink-0 relative border border-gray-200 dark:border-zinc-800">
+      <img 
+        src={imgSrc} 
+        alt="Episode Thumbnail" 
+        className="object-cover w-full h-full pointer-events-none" 
+        onError={() => setImgSrc('/images/placeholder-landscape.png')}
+        draggable="false"
+      />
     </div>
   );
 }
@@ -314,7 +282,7 @@ function PlayerUI() {
                 const episodes = data.content_data[activeSeasonIdx].episodes.map((ep, idx) => ({
                   title: ep.title,
                   videoUrl: ep.qualities?.[0]?.url || '',
-                  fallbackImg: data.landscape_thumbnail_url || data.thumbnail_url,
+                  fallbackImg: ep.thumbnail_url || data.landscape_thumbnail_url || data.thumbnail_url,
                   season: data.content_data[activeSeasonIdx].season,
                   episode: ep.episode || idx + 1
                 }));
@@ -398,10 +366,9 @@ function PlayerUI() {
                    className={`flex items-center gap-4 p-3 bg-white dark:bg-zinc-900/40 hover:bg-gray-50 dark:hover:bg-zinc-800/80 rounded-xl cursor-pointer transition group border border-gray-100 dark:border-transparent ${activeEpisodeIdx === idx ? 'border-l-4 border-l-[#ff2e7a] dark:border-l-[#ff2e7a]' : ''}`}
                  >
                    {settings?.show_episode_thumbnails !== false && (
-                     <DynamicThumbnail 
-                       videoUrl={ep.qualities?.[0]?.url} 
-                       fallbackImg={data.landscape_thumbnail_url || data.thumbnail_url || null} 
-                       backupFallbackImg={data.backup_thumbnail_url || null}
+                     <SafeEpisodeThumbnail 
+                       src={ep.thumbnail_url} 
+                       fallbackImg={data.landscape_thumbnail_url || data.thumbnail_url} 
                      />
                    )}
                    <div className="flex-1 overflow-hidden">
