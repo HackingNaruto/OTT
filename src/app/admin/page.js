@@ -258,6 +258,32 @@ export default function Admin() {
 
   const [isGeneratingInstantThumb, setIsGeneratingInstantThumb] = useState(false);
   const [generatingIndex, setGeneratingIndex] = useState(null);
+  const [isFetchingTMDB, setIsFetchingTMDB] = useState(false);
+
+  const fetchTMDBData = async () => {
+    if (!title || title.trim() === '') return;
+    setIsFetchingTMDB(true);
+    try {
+      const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY || 'YOUR_TMDB_API_KEY';
+      const searchType = type === 'movie' ? 'movie' : 'tv';
+      const url = `https://api.themoviedb.org/3/search/${searchType}?api_key=${apiKey}&query=${encodeURIComponent(title)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      
+      if (data.results && data.results.length > 0) {
+        const result = data.results[0];
+        if (result.poster_path) setThumbnailUrl(result.poster_path);
+        if (result.backdrop_path) setLandscapeThumbnailUrl(result.backdrop_path);
+      } else {
+        alert(`No TMDB match found for "${title}".`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error fetching from TMDB.');
+    } finally {
+      setIsFetchingTMDB(false);
+    }
+  };
 
   const generateInstantThumbnail = async (passedUrl, sIdx = null, eIdx = null) => {
     let targetUrl = passedUrl;
@@ -536,7 +562,12 @@ export default function Admin() {
             <div className="space-y-4">
               <h3 className="text-sm font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-widest border-b border-gray-200 dark:border-zinc-800 pb-2">Method 1: Manual Data Entry</h3>
               <div className="flex flex-col gap-3">
-                 <input type="text" placeholder="Title (Eg: Breaking Bad)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={title} onChange={e => setTitle(e.target.value)} required />
+                 <div className="flex gap-2">
+                   <input type="text" placeholder="Title (Eg: Breaking Bad)" className="flex-1 bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={title} onChange={e => setTitle(e.target.value)} onBlur={fetchTMDBData} required />
+                   <button type="button" onClick={fetchTMDBData} disabled={isFetchingTMDB || !title} className="px-4 py-3 bg-zinc-800 text-white rounded-xl text-sm font-bold disabled:opacity-50 whitespace-nowrap border border-zinc-700">
+                     {isFetchingTMDB ? 'Fetching...' : 'Auto-Thumb'}
+                   </button>
+                 </div>
                  <input type="text" placeholder="Short Title (Optional)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={shortTitle} onChange={e => setShortTitle(e.target.value)} />
                  <input type="text" placeholder="Portrait Thumbnail URL (Optional)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={thumbnailUrl} onChange={e => setThumbnailUrl(e.target.value)} />
                  <input type="text" placeholder="Landscape Thumbnail URL (Optional) (For Trending 16:9)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={landscapeThumbnailUrl} onChange={e => setLandscapeThumbnailUrl(e.target.value)} />
