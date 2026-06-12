@@ -14,9 +14,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 async function scrapePoster(title) {
   const encodedTitle = encodeURIComponent(title);
-  const imdbUrl = `https://www.imdb.com/find/?q=${encodedTitle}`;
+  const tmdbUrl = `https://www.themoviedb.org/search?query=${encodedTitle}`;
 
-  const response = await fetch(imdbUrl, {
+  const response = await fetch(tmdbUrl, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
       'Accept-Language': 'en-US,en;q=0.9',
@@ -28,16 +28,13 @@ async function scrapePoster(title) {
   const html = await response.text();
   const $ = cheerio.load(html);
   
-  const firstImage = $('img.ipc-image').first();
+  const firstImage = $('img.poster').first();
   let posterUrl = firstImage.attr('src');
   
-  const srcSet = firstImage.attr('srcset');
-  if (srcSet) {
-    const srcList = srcSet.split(',').map(s => s.trim().split(' '));
-    if (srcList.length > 0) {
-      posterUrl = srcList[srcList.length - 1][0];
-    }
+  if (posterUrl) {
+    posterUrl = posterUrl.replace(/w\d+_and_h\d+_face/, 'w500');
   }
+  
   return posterUrl || null;
 }
 

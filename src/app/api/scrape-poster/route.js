@@ -11,10 +11,9 @@ export async function GET(request) {
 
   try {
     const encodedTitle = encodeURIComponent(title);
-    const imdbUrl = `https://www.imdb.com/find/?q=${encodedTitle}`;
+    const tmdbUrl = `https://www.themoviedb.org/search?query=${encodedTitle}`;
 
-    // Spoof User-Agent to avoid getting 403 Forbidden from IMDb
-    const response = await fetch(imdbUrl, {
+    const response = await fetch(tmdbUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
         'Accept-Language': 'en-US,en;q=0.9',
@@ -22,31 +21,22 @@ export async function GET(request) {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch from IMDb. Status: ${response.status}`);
+      throw new Error(`Failed to fetch from TMDB. Status: ${response.status}`);
     }
 
     const html = await response.text();
     const $ = cheerio.load(html);
 
-    // Look for the first high-quality image inside IMDb's search results
-    // IMDb usually uses img.ipc-image for movie posters in lists
-    const firstImage = $('img.ipc-image').first();
+    const firstImage = $('img.poster').first();
     let posterUrl = firstImage.attr('src');
     
-    // Sometimes IMDb lazy-loads and stores the high-res URL in a srcset or another attribute
-    // If src is a placeholder or base64, we might need to parse srcset. 
-    // We'll check the 'srcset' and extract the highest resolution if possible.
-    const srcSet = firstImage.attr('srcset');
-    if (srcSet) {
-      // srcset looks like: "url 100w, url 200w" -> we want the last one for best quality
-      const srcList = srcSet.split(',').map(s => s.trim().split(' '));
-      if (srcList.length > 0) {
-        posterUrl = srcList[srcList.length - 1][0]; // grab the highest resolution URL
-      }
+    if (posterUrl) {
+      // Convert low-res thumbnail to high-res
+      posterUrl = posterUrl.replace(/w\d+_and_h\d+_face/, 'w500');
     }
 
     if (!posterUrl) {
-      return NextResponse.json({ error: 'No poster found on IMDb for this title.' }, { status: 404 });
+      return NextResponse.json({ error: 'No poster found for this title.' }, { status: 404 });
     }
 
     return NextResponse.json({ posterUrl });
