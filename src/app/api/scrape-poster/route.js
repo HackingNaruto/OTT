@@ -1,4 +1,3 @@
-import * as cheerio from 'cheerio';
 import { NextResponse } from 'next/server';
 
 export async function GET(request) {
@@ -11,37 +10,33 @@ export async function GET(request) {
 
   try {
     const encodedTitle = encodeURIComponent(title);
-    const tmdbUrl = `https://www.themoviedb.org/search?query=${encodedTitle}`;
-
-    const response = await fetch(tmdbUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch from TMDB. Status: ${response.status}`);
-    }
-
-    const html = await response.text();
-    const $ = cheerio.load(html);
-
-    const firstImage = $('img.poster').first();
-    let posterUrl = firstImage.attr('src');
+    // Hardcoding the provided key per instructions, but falling back to env
+    const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY || process.env.TMDB_API_KEY || 'e547e17d4e91f3e62a571655cd1ccaff';
     
-    if (posterUrl) {
-      // Convert low-res thumbnail to high-res
-      posterUrl = posterUrl.replace(/w\d+_and_h\d+_face/, 'w500');
+    // First try searching as a movie, then as TV if no poster found. To be simple, we just do a multi-search
+    const tmdbUrl = `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&query=${encodedTitle}`;
+
+    const response = await fetch(tmdbUrl);
+    
+    if (!response.ok) {
+      throw new Error(`TMDB API Failed. Status: ${response.status}`);
     }
 
-    if (!posterUrl) {
-      return NextResponse.json({ error: 'No poster found for this title.' }, { status: 404 });
+    const data = await response.json();
+    
+    if (data.results && data.results.length > 0) {
+      const result = data.results[0];
+      if (result.poster_path) {
+        return NextResponse.json({ 
+          posterUrl: result.poster_path,
+          backdropUrl: result.backdrop_path || null 
+        });
+      }
     }
 
-    return NextResponse.json({ posterUrl });
+    return NextResponse.json({ error: 'No poster found on TMDB API for this title.' }, { status: 404 });
   } catch (error) {
-    console.error('Scraping Error:', error);
-    return NextResponse.json({ error: 'Failed to scrape poster.' }, { status: 500 });
+    console.error('TMDB API Error:', error);
+    return NextResponse.json({ error: 'Failed to fetch from TMDB.' }, { status: 500 });
   }
 }

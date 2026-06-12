@@ -270,7 +270,9 @@ export default function Admin() {
       
       if (res.ok && data.posterUrl) {
         setThumbnailUrl(data.posterUrl);
-        // Optionally assign to landscape as well or leave empty
+        if (data.backdropUrl) {
+          setLandscapeThumbnailUrl(data.backdropUrl);
+        }
       } else {
         alert(data.error || `No poster found for "${title}".`);
       }
