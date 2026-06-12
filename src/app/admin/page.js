@@ -32,6 +32,7 @@ export default function Admin() {
   const [seasons, setSeasons] = useState([{ season: 1, episodes: [{ episode: 1, title: 'Episode 1', qualities: [{ quality: '1080p', url: '' }] }] }]);
   const [bulkImportText, setBulkImportText] = useState('');
   const [movieBulkImportText, setMovieBulkImportText] = useState('');
+  const [seasonThumbTexts, setSeasonThumbTexts] = useState({});
 
   // -- Manage List State --
   const [existingContent, setExistingContent] = useState([]);
@@ -179,6 +180,7 @@ export default function Admin() {
     setType('movie');
     setMovieQualities([{ quality: '1080p', url: '' }]);
     setSeasons([{ season: 1, episodes: [{ episode: 1, title: 'Episode 1', qualities: [{ quality: '1080p', url: '' }] }] }]);
+    setSeasonThumbTexts({});
   };
 
   const handleSubmitCMS = async (e) => {
@@ -309,6 +311,29 @@ export default function Admin() {
   const addEpisodeQuality = (sIdx, eIdx) => { const u = [...seasons]; u[sIdx].episodes[eIdx].qualities.push({ quality: '', url: '' }); setSeasons(u); };
   const updateEpisodeQuality = (sIdx, eIdx, qIdx, field, val) => { const u = [...seasons]; u[sIdx].episodes[eIdx].qualities[qIdx][field] = val; setSeasons(u); };
   const removeEpisodeQuality = (sIdx, eIdx, qIdx) => { const u = [...seasons]; u[sIdx].episodes[eIdx].qualities = u[sIdx].episodes[eIdx].qualities.filter((_, i) => i !== qIdx); setSeasons(u); };
+
+  const handleSeasonBulkThumbs = (sIdx) => {
+    const text = seasonThumbTexts[sIdx] || '';
+    if (!text.trim()) return;
+    const lines = text.split('\n');
+    const u = [...seasons];
+    let appliedCount = 0;
+    lines.forEach(line => {
+      const match = line.trim().match(/^(\d+)\s+(http.*)/);
+      if (match) {
+        const epNum = Number(match[1]);
+        const url = match[2];
+        const epIdx = u[sIdx].episodes.findIndex(e => e.episode === epNum);
+        if (epIdx !== -1) {
+          u[sIdx].episodes[epIdx].thumbnail_url = url;
+          appliedCount++;
+        }
+      }
+    });
+    setSeasons(u);
+    alert(`Applied ${appliedCount} thumbnails to Season ${u[sIdx].season}`);
+    setSeasonThumbTexts({...seasonThumbTexts, [sIdx]: ''});
+  };
 
   const handleBulkImport = () => {
     if (!bulkImportText.trim()) return;
@@ -604,16 +629,36 @@ export default function Admin() {
                       <button type="button" onClick={() => removeSeason(sIdx)} className="text-red-500 text-xs"><i className="fas fa-trash"></i> Delete Season</button>
                     </div>
 
+                    {/* Season Bulk Thumbnail Import */}
+                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-3 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <h4 className="text-xs font-bold text-zinc-400 uppercase">Bulk Episode Thumbnails</h4>
+                        <span className="text-[10px] text-zinc-500">Format: [Ep#] [URL]</span>
+                      </div>
+                      <textarea
+                        className="w-full bg-black border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-red-600 h-20"
+                        placeholder="1 https://media.themoviedb.org/t/p/w227/256Kt.jpg&#10;2 https://media.themoviedb.org/t/p/w227/kF4bn.jpg"
+                        value={seasonThumbTexts[sIdx] || ''}
+                        onChange={e => setSeasonThumbTexts({...seasonThumbTexts, [sIdx]: e.target.value})}
+                      />
+                      <button type="button" onClick={() => handleSeasonBulkThumbs(sIdx)} className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-1.5 px-4 rounded-lg text-xs transition border border-zinc-700">
+                        Apply Bulk Thumbnails
+                      </button>
+                    </div>
+
                     {/* Episodes List */}
                     <div className="pl-3 border-l border-zinc-800 space-y-6">
                       {season.episodes.map((ep, eIdx) => (
                         <div key={eIdx} className="space-y-3">
                           {/* Episode Inputs */}
                           <div className="flex flex-col sm:flex-row gap-2">
-                            <input type="number" placeholder="Ep #" className="w-full sm:w-20 bg-zinc-900/50 border border-zinc-800 rounded-lg px-3 py-2 text-sm outline-none" value={ep.episode} onChange={e => updateEpisode(sIdx, eIdx, 'episode', e.target.value)} required />
-                            <div className="flex w-full sm:flex-1 gap-2">
-                              <input type="text" placeholder="Episode Title" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-lg px-3 py-2 text-sm outline-none" value={ep.title} onChange={e => updateEpisode(sIdx, eIdx, 'title', e.target.value)} required />
-                              <button type="button" onClick={() => removeEpisode(sIdx, eIdx)} className="text-zinc-600 hover:text-red-500 px-2"><i className="fas fa-times"></i></button>
+                            <input type="number" placeholder="Ep #" className="w-full sm:w-20 bg-zinc-900/50 border border-zinc-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-600" value={ep.episode} onChange={e => updateEpisode(sIdx, eIdx, 'episode', e.target.value)} required />
+                            <div className="flex flex-col w-full sm:flex-1 gap-2">
+                              <div className="flex gap-2">
+                                <input type="text" placeholder="Episode Title" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-600" value={ep.title} onChange={e => updateEpisode(sIdx, eIdx, 'title', e.target.value)} required />
+                                <button type="button" onClick={() => removeEpisode(sIdx, eIdx)} className="text-zinc-600 hover:text-red-500 px-2"><i className="fas fa-times"></i></button>
+                              </div>
+                              <input type="text" placeholder="Episode Thumbnail URL" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-600" value={ep.thumbnail_url || ''} onChange={e => updateEpisode(sIdx, eIdx, 'thumbnail_url', e.target.value)} />
                             </div>
                           </div>
 
