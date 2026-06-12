@@ -193,10 +193,10 @@ export default function Admin() {
     const payload = {
       title,
       short_title: shortTitle,
-      thumbnail_url: thumbnailUrl || null,
-      landscape_thumbnail_url: landscapeThumbnailUrl || null,
-      backup_thumbnail_url: backupThumbnailUrl || null,
-      video_url: videoUrl || null,
+      thumbnail_url: thumbnailUrl || '',
+      landscape_thumbnail_url: landscapeThumbnailUrl || '',
+      backup_thumbnail_url: backupThumbnailUrl || '',
+      video_url: videoUrl || '',
       type,
       content_data: contentDataPayload
     };
