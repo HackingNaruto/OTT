@@ -107,11 +107,29 @@ export default function Home() {
   const movieList = movies.filter(m => m.type === 'movie');
   const seriesList = movies.filter(m => m.type === 'series');
 
+  const SafeImage = ({ src, alt, className }) => {
+    const [imgSrc, setImgSrc] = useState(() => {
+      if (!src) return '/placeholder.png'; // Assuming you have a placeholder in public/
+      if (src.startsWith('/')) return `https://image.tmdb.org/t/p/w500${src}`;
+      return src;
+    });
+
+    return (
+      <img 
+        src={imgSrc} 
+        alt={alt} 
+        className={className} 
+        onError={() => setImgSrc('/placeholder.png')} 
+        draggable="false"
+      />
+    );
+  };
+
   const MovieCard = ({ movie }) => (
     <Link href={`/watch?id=${movie.id}`} key={movie.id} className="w-full flex-none block">
       <div className="bg-white dark:bg-black rounded-xl overflow-hidden border border-gray-200 dark:border-zinc-800 hover:border-red-500 dark:hover:border-red-600 transition group cursor-pointer shadow-lg h-full">
         <div className="aspect-[2/3] relative overflow-hidden bg-gray-100 dark:bg-zinc-900">
-          <img src={movie.thumbnail_url} alt={movie.title} className="w-full h-full object-cover group-hover:scale-105 transition" />
+          <SafeImage src={movie.thumbnail_url} alt={movie.title} className="w-full h-full object-cover group-hover:scale-105 transition" />
           {movie.type && (
             <div className="absolute top-2 right-2 bg-black/80 text-[10px] font-bold px-2 py-1 rounded border border-zinc-700 uppercase tracking-wider text-zinc-300">
               {movie.type}
@@ -173,7 +191,7 @@ export default function Home() {
               >
                 {trendingList.map((movie, idx) => (
                   <div key={`slide-${movie.id}-${idx}`} className="min-w-full h-full snap-center relative overflow-hidden">
-                    <img src={movie.landscape_thumbnail_url || movie.thumbnail_url} alt={movie.title} className="object-cover w-full h-full" />
+                    <SafeImage src={movie.landscape_thumbnail_url || movie.thumbnail_url} alt={movie.title} className="object-cover w-full h-full" />
                     
                     <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent pointer-events-none"></div>
 
@@ -204,7 +222,7 @@ export default function Home() {
                 {continueWatching.map((item, idx) => (
                   <Link href={`/watch?id=${item.id}`} key={`cw-${item.id}-${idx}`} className="w-[70vw] md:w-72 flex-none block snap-start group cursor-pointer">
                     <div className="aspect-video relative rounded-xl overflow-hidden bg-gray-200 dark:bg-zinc-900 shadow-md">
-                      <img src={item.landscape_thumbnail_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                      <SafeImage src={item.landscape_thumbnail_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
                       <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition duration-300"></div>
                       <div className="absolute bottom-2 left-2 bg-red-600 w-8 h-8 rounded-full flex items-center justify-center shadow-lg">
                         <i className="fas fa-play text-white text-xs pl-0.5"></i>
