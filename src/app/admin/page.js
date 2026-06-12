@@ -416,57 +416,36 @@ export default function Admin() {
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [bulkThumbLog, setBulkThumbLog] = useState([]);
 
-  const handleBulkThumbImport = async () => {
+  const handleApplyBulkThumbnails = () => {
     if (!bulkThumbText.trim()) return;
-    setIsBulkUpdating(true);
-    setBulkThumbLog([]);
-    const lines = bulkThumbText.trim().split('\n').filter(l => l.trim());
-    const log = [];
-    let updatedCurrentEdit = false;
-    let newThumbUrlForEdit = '';
-
-    const updates = lines.map(line => {
-      const parts = line.split('|').map(s => s.trim());
-      if (parts.length < 2 || !parts[0] || !parts[1]) {
-        log.push(`⚠️ Skipped invalid line: ${line}`);
-        return null;
-      }
-      return { id: parts[0], url: parts[1] };
-    }).filter(Boolean);
-
-    try {
-      const results = await Promise.all(
-        updates.map(async ({ id, url }) => {
-          const { error } = await supabase
-            .from('movies')
-            .update({ thumbnail_url: url })
-            .eq('id', id);
-          if (error) {
-            log.push(`❌ Failed ID ${id}: ${error.message}`);
-          } else {
-            log.push(`✅ Updated ID ${id} -> ${url}`);
-            // State synchronization: if we updated the item currently being edited
-            if (editId === id) {
-              updatedCurrentEdit = true;
-              newThumbUrlForEdit = url;
-            }
-          }
-        })
-      );
-      log.push(`\n🎉 Batch complete! ${updates.length} items processed.`);
-    } catch (err) {
-      log.push(`💥 Fatal error: ${err.message}`);
-    }
-
-    setBulkThumbLog(log);
-    setBulkThumbText('');
-    setIsBulkUpdating(false);
     
-    // Critical State Synchronization
-    fetchExistingContent();
-    if (updatedCurrentEdit && newThumbUrlForEdit) {
-      setThumbnailUrl(newThumbUrlForEdit);
-    }
+    const lines = bulkThumbText.trim().split('\n').filter(l => l.trim());
+    const newSeasons = [...seasons];
+    let updateCount = 0;
+
+    lines.forEach(line => {
+      // Split by whitespace: expects an integer followed by the URL
+      const match = line.trim().match(/^(\d+)\s+(http.*)/);
+      if (match) {
+        const epNum = parseInt(match[1], 10);
+        const url = match[2];
+
+        // Search through seasons to find the matching episode object
+        for (let sIdx = 0; sIdx < newSeasons.length; sIdx++) {
+          const epIdx = newSeasons[sIdx].episodes.findIndex(e => e.episode === epNum);
+          if (epIdx !== -1) {
+            newSeasons[sIdx].episodes[epIdx].thumbnail_url = url; // Update local state only
+            updateCount++;
+            break; // Stop searching once the episode is found and updated
+          }
+        }
+      }
+    });
+
+    // Save the newly modified array back to React state
+    setSeasons(newSeasons);
+    setBulkThumbText(''); // Clear the textarea
+    alert(`Thumbnails synced to form! ${updateCount} episodes updated. Click 'Update Content' to save to database.`);
   };
 
   if (!isAuthenticated) {
@@ -685,36 +664,38 @@ export default function Admin() {
                 </button>
               </div>
             )}
-            {/* --- METHOD 3: BULK THUMBNAIL UPDATE --- */}
+            {/* --- METHOD 3: BULK EPISODE THUMBNAIL SYNC --- */}
             <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 space-y-3">
-              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Method 3: Bulk Thumbnail Update</h3>
-              <p className="text-xs text-zinc-500">Format: <code className="bg-black px-1 py-0.5 rounded text-red-400">Content_ID | Thumbnail_URL</code></p>
-              <p className="text-xs text-zinc-600 italic">Matches by Content_ID. Instantly updates <code className="text-zinc-400">thumbnail_url</code> and syncs local state. Nothing else is touched.</p>
+              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">
+                Method 3: Bulk Episode Thumbnails (Local Sync)
+              </h3>
+              
+              <p className="text-xs text-zinc-500">
+                Format: <code className="bg-black px-1 py-0.5 rounded text-red-400">Episode_Number Thumbnail_URL</code> (Separated by space)
+              </p>
+              
+              <p className="text-xs text-zinc-600 italic">
+                Matches by Episode Number. Instantly syncs to the manual form above. Does <strong className="text-red-400">NOT</strong> save to the database until you click Update Content.
+              </p>
+              
               <textarea
                 rows={8}
-                placeholder={`1b4ff806-58a6-4f38-8f5e-7ca183219ab3 | https://media.themoviedb.org/t/p/w500/poster1.jpg\n2a5bc912-12ab-45cd-90ef-abc123456789 | https://media.themoviedb.org/t/p/w500/poster2.jpg`}
+                placeholder={`1 https://media.themoviedb.org/t/p/w500/poster1.jpg\n2 https://media.themoviedb.org/t/p/w500/poster2.jpg`}
                 className="w-full bg-black border border-zinc-800 rounded-lg px-4 py-3 text-sm focus:border-red-600 outline-none font-mono resize-y min-h-[120px]"
                 value={bulkThumbText}
                 onChange={e => setBulkThumbText(e.target.value)}
               />
+              
               <div className="flex gap-3 items-center">
                 <button
                   type="button"
-                  onClick={handleBulkThumbImport}
-                  disabled={isBulkUpdating || !bulkThumbText.trim()}
-                  className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg text-sm transition disabled:opacity-50"
+                  onClick={handleApplyBulkThumbnails}
+                  disabled={!bulkThumbText.trim()}
+                  className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 px-6 rounded-lg text-sm transition border border-zinc-700 disabled:opacity-50"
                 >
-                  {isBulkUpdating ? 'Updating...' : 'Update Thumbnails'}
+                  Apply Bulk Thumbnails
                 </button>
-                {bulkThumbLog.length > 0 && <span className="text-xs text-zinc-500">{bulkThumbLog.length} entries processed</span>}
               </div>
-              {bulkThumbLog.length > 0 && (
-                <div className="bg-black/50 border border-zinc-800 rounded-lg p-3 max-h-40 overflow-y-auto mt-2">
-                  {bulkThumbLog.map((line, i) => (
-                    <p key={i} className="text-xs text-zinc-300 font-mono py-0.5">{line}</p>
-                  ))}
-                </div>
-              )}
             </div>
 
             <button type="submit" disabled={loading} className="w-full bg-red-600 hover:bg-red-700 font-bold py-4 rounded-xl transition text-base disabled:opacity-50 mt-8 shadow-lg shadow-red-900/50">
