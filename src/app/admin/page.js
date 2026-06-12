@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { loginAdmin } from '../actions/auth';
+import MediaLibrary from '../../components/MediaLibrary';
 
 export default function Admin() {
   const router = useRouter();
@@ -15,7 +16,7 @@ export default function Admin() {
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  const [activeTab, setActiveTab] = useState('cms'); // 'cms', 'manage', or 'settings'
+  const [activeTab, setActiveTab] = useState('cms'); // 'cms', 'manage', 'settings', 'media'
   
   // -- CMS Form State --
   const [editId, setEditId] = useState(null);
@@ -490,7 +491,8 @@ export default function Admin() {
         <div className="flex gap-2 mb-6 border-b border-zinc-800 pb-2 overflow-x-auto whitespace-nowrap hide-scrollbar">
           <button onClick={() => setActiveTab('cms')} className={`px-4 py-2 text-sm md:text-base font-bold rounded-lg transition ${activeTab === 'cms' ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>Add/Edit Content</button>
           <button onClick={() => setActiveTab('manage')} className={`px-4 py-2 text-sm md:text-base font-bold rounded-lg transition ${activeTab === 'manage' ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>Manage List</button>
-          <button onClick={() => setActiveTab('settings')} className={`px-4 py-2 text-sm md:text-base font-bold rounded-lg transition ${activeTab === 'settings' ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>Player Settings</button>
+          <button onClick={() => setActiveTab('media')} className={`px-4 py-2 text-sm md:text-base font-bold rounded-lg transition ${activeTab === 'media' ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>Media Library</button>
+          <button onClick={() => setActiveTab('settings')} className={`px-4 py-2 text-sm md:text-base font-bold rounded-lg transition ${activeTab === 'settings' ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}><i className="fas fa-cog"></i> Settings</button>
         </div>
         
         {/* --- ADD / EDIT CONTENT TAB --- */}
@@ -833,7 +835,12 @@ export default function Admin() {
             </button>
           </form>
         )}
+      </div>
 
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {activeTab === 'media' && (
+          <MediaLibrary />
+        )}
       </div>
     </div>
   );
