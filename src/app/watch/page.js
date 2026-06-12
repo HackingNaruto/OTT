@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
 
 function SafeEpisodeThumbnail({ src, fallbackImg }) {
+  const [isLoaded, setIsLoaded] = useState(false);
   const [imgSrc, setImgSrc] = useState(() => {
     if (src) return src;
     if (fallbackImg) return fallbackImg;
@@ -13,12 +14,23 @@ function SafeEpisodeThumbnail({ src, fallbackImg }) {
 
   return (
     <div className="w-28 h-16 md:w-36 md:h-20 bg-zinc-900 rounded-lg overflow-hidden flex-shrink-0 relative border border-gray-200 dark:border-zinc-800">
+      {/* Shimmering Skeleton */}
+      {!isLoaded && (
+        <div className="absolute inset-0 bg-zinc-800 animate-pulse flex items-center justify-center">
+           <i className="fas fa-image text-zinc-700 text-sm"></i>
+        </div>
+      )}
       <img 
         src={imgSrc} 
         alt="Episode Thumbnail" 
-        className="object-cover w-full h-full pointer-events-none" 
-        onError={() => setImgSrc('/images/placeholder-landscape.png')}
+        className={`object-cover w-full h-full pointer-events-none transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`} 
+        onLoad={() => setIsLoaded(true)}
+        onError={() => {
+          setImgSrc('/images/placeholder-landscape.png');
+          setIsLoaded(true);
+        }}
         draggable="false"
+        loading="lazy"
       />
     </div>
   );
