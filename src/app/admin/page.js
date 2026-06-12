@@ -25,7 +25,6 @@ export default function Admin() {
   const [shortTitle, setShortTitle] = useState('');
   const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [landscapeThumbnailUrl, setLandscapeThumbnailUrl] = useState('');
-  const [backupThumbnailUrl, setBackupThumbnailUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
 
   const [movieQualities, setMovieQualities] = useState([{ quality: '1080p', url: '' }]);
@@ -111,7 +110,7 @@ export default function Admin() {
 
   const fetchExistingContent = async () => {
     setIsFetchingList(true);
-    const { data, error } = await supabase.from('movies').select('id, title, type, created_at, content_data, video_url, thumbnail_url, landscape_thumbnail_url, backup_thumbnail_url, short_title').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('movies').select('id, title, type, created_at, content_data, video_url, thumbnail_url, landscape_thumbnail_url, short_title').order('created_at', { ascending: false });
     if (!error && data) {
       setExistingContent(data);
     }
@@ -141,7 +140,6 @@ export default function Admin() {
     setShortTitle(item.short_title || '');
     setThumbnailUrl(item.thumbnail_url || '');
     setLandscapeThumbnailUrl(item.landscape_thumbnail_url || '');
-    setBackupThumbnailUrl(item.backup_thumbnail_url || '');
     setVideoUrl(item.video_url || '');
     setType(item.type || 'movie');
 
@@ -175,7 +173,6 @@ export default function Admin() {
     setShortTitle('');
     setThumbnailUrl('');
     setLandscapeThumbnailUrl('');
-    setBackupThumbnailUrl('');
     setVideoUrl('');
     setType('movie');
     setMovieQualities([{ quality: '1080p', url: '' }]);
@@ -201,7 +198,6 @@ export default function Admin() {
       short_title: shortTitle,
       thumbnail_url: thumbnailUrl || '',
       landscape_thumbnail_url: landscapeThumbnailUrl || '',
-      backup_thumbnail_url: backupThumbnailUrl || '',
       video_url: videoUrl || '',
       type,
       content_data: contentDataPayload
@@ -523,7 +519,6 @@ export default function Admin() {
                  <input type="text" placeholder="Short Title (Optional)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={shortTitle} onChange={e => setShortTitle(e.target.value)} />
                  <input type="text" placeholder="Portrait Thumbnail URL (Optional)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={thumbnailUrl} onChange={e => setThumbnailUrl(e.target.value)} />
                  <input type="text" placeholder="Landscape Thumbnail URL (Optional) (For Trending 16:9)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={landscapeThumbnailUrl} onChange={e => setLandscapeThumbnailUrl(e.target.value)} />
-                 <input type="text" placeholder="Backup Thumbnail URL (Optional) (For ImgBB Failover)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={backupThumbnailUrl} onChange={e => setBackupThumbnailUrl(e.target.value)} />
                  
                  <div className="flex gap-2">
                    <input type="text" placeholder="Fallback Video URL (Optional)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
