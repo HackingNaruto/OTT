@@ -117,6 +117,10 @@ export default function Admin() {
     setIsFetchingList(false);
   };
 
+  useEffect(() => {
+    if (isAuthenticated) fetchExistingContent();
+  }, [isAuthenticated]);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -256,8 +260,6 @@ export default function Admin() {
     else alert('Player Settings saved!');
   };
 
-  const [isGeneratingInstantThumb, setIsGeneratingInstantThumb] = useState(false);
-  const [generatingIndex, setGeneratingIndex] = useState(null);
   const [isFetchingTMDB, setIsFetchingTMDB] = useState(false);
 
   const fetchTMDBData = async () => {
@@ -284,119 +286,6 @@ export default function Admin() {
     } finally {
       setIsFetchingTMDB(false);
     }
-  };
-
-  const generateInstantThumbnail = async (passedUrl, sIdx = null, eIdx = null) => {
-    let targetUrl = passedUrl;
-    
-    if (!targetUrl || targetUrl.trim() === '') {
-        if (type === 'movie') {
-            targetUrl = videoUrl;
-        } else if (type === 'series') {
-            if (seasons && seasons.length > 0 && 
-                seasons[0].episodes && seasons[0].episodes.length > 0 && 
-                seasons[0].episodes[0].qualities && seasons[0].episodes[0].qualities.length > 0) {
-                targetUrl = seasons[0].episodes[0].qualities[0].url;
-            }
-        }
-    }
-
-    if (!targetUrl || targetUrl.trim() === '') {
-        return alert("Please enter a Video URL (or add at least one episode source for a series) first.");
-    }
-    setIsGeneratingInstantThumb(true);
-    setGeneratingIndex(sIdx !== null && eIdx !== null ? `${sIdx}-${eIdx}` : 'main');
-    try {
-      const video = document.createElement('video');
-      video.crossOrigin = 'anonymous';
-      video.muted = true;
-      video.playsInline = true;
-
-      await new Promise((resolve, reject) => {
-         let timeoutFired = false;
-         const timeoutId = setTimeout(() => {
-             timeoutFired = true;
-             captureAndUpload();
-         }, 1500);
-
-         video.onloadedmetadata = () => {
-             let targetTime = video.duration / 2;
-             if (!video.duration || isNaN(video.duration) || !isFinite(video.duration) || video.duration <= 0) {
-                 targetTime = 30; // Instantly skip 0:00
-             }
-             video.currentTime = targetTime;
-         };
-
-         const captureAndUpload = () => {
-             video.pause();
-             const canvas = document.createElement('canvas');
-             canvas.width = 640;
-             canvas.height = 360;
-             const ctx = canvas.getContext('2d');
-             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-             canvas.toBlob(async (blob) => {
-                 if (blob) {
-                     const catboxFormData = new FormData();
-                     catboxFormData.append('reqtype', 'fileupload');
-                     catboxFormData.append('fileToUpload', blob, 'thumb.jpg');
-
-                     const imgbbFormData = new FormData();
-                     imgbbFormData.append('image', blob, 'thumb.jpg');
-                     const IMGBB_API_KEY = 'YOUR_IMGBB_API_KEY';
-
-                     const uploadToCatbox = fetch('https://catbox.moe/user/api.php', {
-                         method: 'POST',
-                         body: catboxFormData
-                     }).then(res => res.text()).catch(() => null);
-
-                     const uploadToImgbb = fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-                         method: 'POST',
-                         body: imgbbFormData
-                     }).then(res => res.json()).then(d => d?.data?.url).catch(() => null);
-
-                     const [catboxUrl, imgbbUrl] = await Promise.all([uploadToCatbox, uploadToImgbb]);
-
-                     if ((catboxUrl && catboxUrl.startsWith('http')) || (imgbbUrl && imgbbUrl.startsWith('http'))) {
-                         if (sIdx !== null && eIdx !== null) {
-                             const newSeasons = [...seasons];
-                             if (catboxUrl && catboxUrl.startsWith('http')) newSeasons[sIdx].episodes[eIdx].landscape_thumbnail_url = catboxUrl;
-                             if (imgbbUrl && imgbbUrl.startsWith('http')) newSeasons[sIdx].episodes[eIdx].backup_thumbnail_url = imgbbUrl;
-                             setSeasons(newSeasons);
-                         } else {
-                             if (catboxUrl && catboxUrl.startsWith('http')) setLandscapeThumbnailUrl(catboxUrl);
-                             if (imgbbUrl && imgbbUrl.startsWith('http')) setBackupThumbnailUrl(imgbbUrl);
-                         }
-                     }
-
-                     alert("Thumbnail Captured Instantly!");
-                 }
-                 resolve();
-             }, 'image/jpeg', 0.4);
-         };
-
-         video.onseeked = () => {
-             if (!timeoutFired) {
-                 clearTimeout(timeoutId);
-                 captureAndUpload();
-             }
-         };
-
-         video.onerror = (e) => {
-             if (!timeoutFired) {
-                 clearTimeout(timeoutId);
-                 reject(e);
-             }
-         };
-
-         video.src = targetUrl;
-      });
-    } catch(e) {
-      alert("Failed to capture thumbnail. Make sure the video URL is valid and supports CORS.");
-      console.log(e);
-    }
-    setIsGeneratingInstantThumb(false);
-    setGeneratingIndex(null);
   };
 
   // --- Movie Quality Handlers ---
@@ -508,44 +397,34 @@ export default function Admin() {
     setBulkThumbLog([]);
     const lines = bulkThumbText.trim().split('\n').filter(l => l.trim());
     const log = [];
+    let updatedCurrentEdit = false;
+    let newThumbUrlForEdit = '';
 
     const updates = lines.map(line => {
-      // Support both "Title | URL" (pipe) and "Title URL" (space before http) formats
-      let title, url;
-      if (line.includes('|')) {
-        const parts = line.split('|').map(s => s.trim());
-        title = parts[0];
-        url = parts[1];
-      } else {
-        // Split at the first "http" occurrence
-        const httpIndex = line.indexOf('http');
-        if (httpIndex > 0) {
-          title = line.substring(0, httpIndex).trim();
-          url = line.substring(httpIndex).trim();
-        }
-      }
-      if (!title || !url) {
+      const parts = line.split('|').map(s => s.trim());
+      if (parts.length < 2 || !parts[0] || !parts[1]) {
         log.push(`⚠️ Skipped invalid line: ${line}`);
         return null;
       }
-      return { title, url };
+      return { id: parts[0], url: parts[1] };
     }).filter(Boolean);
 
     try {
       const results = await Promise.all(
-        updates.map(async ({ title, url }) => {
-          // Match by title (case-insensitive using ilike)
-          const { data, error } = await supabase
+        updates.map(async ({ id, url }) => {
+          const { error } = await supabase
             .from('movies')
             .update({ thumbnail_url: url })
-            .ilike('title', `%${title}%`)
-            .select('id, title');
+            .eq('id', id);
           if (error) {
-            log.push(`❌ Failed "${title}": ${error.message}`);
-          } else if (!data || data.length === 0) {
-            log.push(`⚠️ No match found for "${title}"`);
+            log.push(`❌ Failed ID ${id}: ${error.message}`);
           } else {
-            log.push(`✅ Updated "${data[0].title}" -> ${url}`);
+            log.push(`✅ Updated ID ${id} -> ${url}`);
+            // State synchronization: if we updated the item currently being edited
+            if (editId === id) {
+              updatedCurrentEdit = true;
+              newThumbUrlForEdit = url;
+            }
           }
         })
       );
@@ -557,7 +436,12 @@ export default function Admin() {
     setBulkThumbLog(log);
     setBulkThumbText('');
     setIsBulkUpdating(false);
+    
+    // Critical State Synchronization
     fetchExistingContent();
+    if (updatedCurrentEdit && newThumbUrlForEdit) {
+      setThumbnailUrl(newThumbUrlForEdit);
+    }
   };
 
   if (!isAuthenticated) {
@@ -639,9 +523,6 @@ export default function Admin() {
                  
                  <div className="flex gap-2">
                    <input type="text" placeholder="Fallback Video URL (Optional)" className="w-full bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:border-red-600 outline-none" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
-                   <button type="button" onClick={() => generateInstantThumbnail(videoUrl)} disabled={isGeneratingInstantThumb} className="whitespace-nowrap px-4 py-3 bg-red-900/30 text-red-500 font-bold border border-red-900/50 rounded-xl hover:bg-red-600 hover:text-white transition disabled:opacity-50 text-sm">
-                     {isGeneratingInstantThumb && generatingIndex === 'main' ? 'Capturing...' : '📸 Instant Auto-Thumb'}
-                   </button>
                  </div>
               </div>
             </div>
@@ -680,9 +561,6 @@ export default function Admin() {
                     <input type="text" placeholder="Quality (e.g. 1080p)" className="w-full sm:w-1/4 bg-zinc-900/50 border border-zinc-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-600" value={q.quality} onChange={e => updateMovieQuality(idx, 'quality', e.target.value)} required />
                     <div className="flex w-full sm:flex-1 gap-2">
                       <input type="text" placeholder="Video URL" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-600" value={q.url} onChange={e => updateMovieQuality(idx, 'url', e.target.value)} required />
-                      <button type="button" onClick={() => generateInstantThumbnail(q.url)} disabled={isGeneratingInstantThumb} className="whitespace-nowrap px-3 bg-red-900/30 text-red-500 hover:text-white rounded-lg text-xs font-bold border border-red-900/50 disabled:opacity-50">
-                        {isGeneratingInstantThumb ? '...' : '📸'}
-                      </button>
                       {movieQualities.length > 1 && <button type="button" onClick={() => removeMovieQuality(idx)} className="bg-red-900/50 text-red-500 hover:text-white px-3 rounded-lg"><i className="fas fa-trash"></i></button>}
                     </div>
                   </div>
@@ -745,9 +623,6 @@ export default function Admin() {
                               <div key={qIdx} className="flex gap-2">
                                  <input type="text" placeholder="1080p" className="w-20 bg-black border border-zinc-800 rounded px-2 py-1 text-xs outline-none focus:border-red-600" value={q.quality} onChange={e => updateEpisodeQuality(sIdx, eIdx, qIdx, 'quality', e.target.value)} required />
                                  <input type="text" placeholder="Source URL" className="flex-1 bg-black border border-zinc-800 rounded px-2 py-1 text-xs outline-none focus:border-red-600" value={q.url} onChange={e => updateEpisodeQuality(sIdx, eIdx, qIdx, 'url', e.target.value)} required />
-                                 <button type="button" onClick={() => generateInstantThumbnail(q.url, sIdx, eIdx)} disabled={isGeneratingInstantThumb} className="whitespace-nowrap px-2 bg-red-900/30 text-red-500 hover:text-white rounded text-[10px] font-bold border border-red-900/50 disabled:opacity-50">
-                                   {isGeneratingInstantThumb && generatingIndex === `${sIdx}-${eIdx}` ? '...' : '📸'}
-                                 </button>
                                  {ep.qualities.length > 1 && <button type="button" onClick={() => removeEpisodeQuality(sIdx, eIdx, qIdx)} className="text-red-900 hover:text-red-500 px-2 text-xs"><i className="fas fa-times"></i></button>}
                               </div>
                             ))}
@@ -768,11 +643,11 @@ export default function Admin() {
             {/* --- METHOD 3: BULK THUMBNAIL UPDATE --- */}
             <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 space-y-3">
               <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Method 3: Bulk Thumbnail Update</h3>
-              <p className="text-xs text-zinc-500">Format: <code className="bg-black px-1 py-0.5 rounded text-red-400">Title https://image-url.jpg</code> &nbsp;or&nbsp; <code className="bg-black px-1 py-0.5 rounded text-red-400">Title | https://image-url.jpg</code></p>
-              <p className="text-xs text-zinc-600 italic">Matches by title (case-insensitive). Only updates <code className="text-zinc-400">thumbnail_url</code>. Nothing else is touched.</p>
+              <p className="text-xs text-zinc-500">Format: <code className="bg-black px-1 py-0.5 rounded text-red-400">Content_ID | Thumbnail_URL</code></p>
+              <p className="text-xs text-zinc-600 italic">Matches by Content_ID. Instantly updates <code className="text-zinc-400">thumbnail_url</code> and syncs local state. Nothing else is touched.</p>
               <textarea
                 rows={8}
-                placeholder={`Episode 1 https://media.themoviedb.org/t/p/w500/poster1.jpg\nEpisode 2 https://media.themoviedb.org/t/p/w500/poster2.jpg\nEpisode 3 https://media.themoviedb.org/t/p/w500/poster3.jpg`}
+                placeholder={`1b4ff806-58a6-4f38-8f5e-7ca183219ab3 | https://media.themoviedb.org/t/p/w500/poster1.jpg\n2a5bc912-12ab-45cd-90ef-abc123456789 | https://media.themoviedb.org/t/p/w500/poster2.jpg`}
                 className="w-full bg-black border border-zinc-800 rounded-lg px-4 py-3 text-sm focus:border-red-600 outline-none font-mono resize-y min-h-[120px]"
                 value={bulkThumbText}
                 onChange={e => setBulkThumbText(e.target.value)}
