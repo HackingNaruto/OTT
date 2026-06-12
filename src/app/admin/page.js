@@ -510,25 +510,42 @@ export default function Admin() {
     const log = [];
 
     const updates = lines.map(line => {
-      const parts = line.split('|').map(s => s.trim());
-      if (parts.length < 2 || !parts[0] || !parts[1]) {
+      // Support both "Title | URL" (pipe) and "Title URL" (space before http) formats
+      let title, url;
+      if (line.includes('|')) {
+        const parts = line.split('|').map(s => s.trim());
+        title = parts[0];
+        url = parts[1];
+      } else {
+        // Split at the first "http" occurrence
+        const httpIndex = line.indexOf('http');
+        if (httpIndex > 0) {
+          title = line.substring(0, httpIndex).trim();
+          url = line.substring(httpIndex).trim();
+        }
+      }
+      if (!title || !url) {
         log.push(`⚠️ Skipped invalid line: ${line}`);
         return null;
       }
-      return { id: parts[0], url: parts[1] };
+      return { title, url };
     }).filter(Boolean);
 
     try {
       const results = await Promise.all(
-        updates.map(async ({ id, url }) => {
-          const { error } = await supabase
+        updates.map(async ({ title, url }) => {
+          // Match by title (case-insensitive using ilike)
+          const { data, error } = await supabase
             .from('movies')
             .update({ thumbnail_url: url })
-            .eq('id', id);
+            .ilike('title', `%${title}%`)
+            .select('id, title');
           if (error) {
-            log.push(`❌ Failed ID ${id}: ${error.message}`);
+            log.push(`❌ Failed "${title}": ${error.message}`);
+          } else if (!data || data.length === 0) {
+            log.push(`⚠️ No match found for "${title}"`);
           } else {
-            log.push(`✅ Updated ID ${id} -> ${url}`);
+            log.push(`✅ Updated "${data[0].title}" -> ${url}`);
           }
         })
       );
@@ -538,6 +555,7 @@ export default function Admin() {
     }
 
     setBulkThumbLog(log);
+    setBulkThumbText('');
     setIsBulkUpdating(false);
     fetchExistingContent();
   };
@@ -747,14 +765,14 @@ export default function Admin() {
                 </button>
               </div>
             )}
-            {/* --- METHOD 3: BULK THUMBNAIL IMPORT --- */}
+            {/* --- METHOD 3: BULK THUMBNAIL UPDATE --- */}
             <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 space-y-3">
-              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Method 3: Bulk Thumbnail Import</h3>
-              <p className="text-xs text-zinc-500">Format: <code className="bg-black px-1 py-0.5 rounded text-red-400">Content_ID | Thumbnail_URL</code></p>
-              <p className="text-xs text-zinc-600 italic">Only updates <code className="text-zinc-400">thumbnail_url</code>. Video URLs and episode data are never touched.</p>
+              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Method 3: Bulk Thumbnail Update</h3>
+              <p className="text-xs text-zinc-500">Format: <code className="bg-black px-1 py-0.5 rounded text-red-400">Title https://image-url.jpg</code> &nbsp;or&nbsp; <code className="bg-black px-1 py-0.5 rounded text-red-400">Title | https://image-url.jpg</code></p>
+              <p className="text-xs text-zinc-600 italic">Matches by title (case-insensitive). Only updates <code className="text-zinc-400">thumbnail_url</code>. Nothing else is touched.</p>
               <textarea
                 rows={8}
-                placeholder={`e.g.\n1b4ff806-58a6-4f38-8f5e-7ca183219ab3 | /kqjL17yufvn9OVLyXYpvtyrFfak.jpg\n2a5bc912-12ab-45cd-90ef-abc123456789 | https://image.tmdb.org/t/p/w500/poster.jpg`}
+                placeholder={`Episode 1 https://media.themoviedb.org/t/p/w500/poster1.jpg\nEpisode 2 https://media.themoviedb.org/t/p/w500/poster2.jpg\nEpisode 3 https://media.themoviedb.org/t/p/w500/poster3.jpg`}
                 className="w-full bg-black border border-zinc-800 rounded-lg px-4 py-3 text-sm focus:border-red-600 outline-none font-mono resize-y min-h-[120px]"
                 value={bulkThumbText}
                 onChange={e => setBulkThumbText(e.target.value)}
@@ -766,7 +784,7 @@ export default function Admin() {
                   disabled={isBulkUpdating || !bulkThumbText.trim()}
                   className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg text-sm transition disabled:opacity-50"
                 >
-                  {isBulkUpdating ? 'Updating...' : 'Process Bulk Thumbnails'}
+                  {isBulkUpdating ? 'Updating...' : 'Update Thumbnails'}
                 </button>
                 {bulkThumbLog.length > 0 && <span className="text-xs text-zinc-500">{bulkThumbLog.length} entries processed</span>}
               </div>
